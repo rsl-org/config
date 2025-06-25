@@ -1,1 +1,1 @@
-# refig - a **re**flective con**fig** and command line interface library
+# rsl::config - a reflective command line argument and config parser
