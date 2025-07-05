@@ -1,1 +1,4 @@
-target_sources(rsl_config PRIVATE dummy.cpp)
+target_sources(rsl_config PRIVATE 
+  cli.cpp
+  program_info.cpp
+)

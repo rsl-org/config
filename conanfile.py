@@ -16,8 +16,14 @@ class rslconfigRecipe(ConanFile):
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    options = {
+        "shared": [True, False],
+        "fPIC": [True, False],
+        "coverage": [True, False],
+        "examples": [True, False]
+    }
+    default_options = {"shared": False, "fPIC": True,
+                       "coverage": False, "examples": False}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*", "include/*"
@@ -32,11 +38,12 @@ class rslconfigRecipe(ConanFile):
 
     def requirements(self):
         self.requires("rsl-util/0.1")
-        self.test_requires("rsl-test/0.1")
+        if not self.conf.get("tools.build:skip_test", default=False):
+            self.test_requires("rsl-test/0.1")
 
     def layout(self):
         cmake_layout(self)
-    
+
     def generate(self):
         deps = CMakeDeps(self)
         deps.generate()
@@ -45,7 +52,12 @@ class rslconfigRecipe(ConanFile):
 
     def build(self):
         cmake = CMake(self)
-        cmake.configure()
+        cmake.configure(
+            variables={
+                "ENABLE_COVERAGE": self.options.coverage,
+                "BUILD_EXAMPLES": self.options.examples,
+                "BUILD_TESTING": not self.conf.get("tools.build:skip_test", default=False)
+            })
         cmake.build()
 
     def package(self):
@@ -57,4 +69,3 @@ class rslconfigRecipe(ConanFile):
         self.cpp_info.components["config"].includedirs = ["include"]
         self.cpp_info.components["config"].libdirs = ["lib"]
         self.cpp_info.components["config"].libs = ["rsl_config"]
-

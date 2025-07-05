@@ -14,6 +14,7 @@ target_compile_options(rsl_config PUBLIC
   "-fannotation-attributes"
   "-fparameter-reflection"
   "-fexpansion-statements"
+  "-fconstexpr-backtrace-limit=0"
   # "-Wno-c++26-extensions"
   # "-ftime-trace"
   # "-fconstexpr-steps=10000000" # required to scan the global namespace
@@ -33,6 +34,7 @@ install(TARGETS rsl_config)
 
 option(BUILD_TESTING "Enable tests" ON)
 option(ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
+option(BUILD_EXAMPLES "Enable examples" ON)
 
 if (BUILD_TESTING)
   message(STATUS "Building unit tests")
@@ -55,4 +57,8 @@ if (BUILD_TESTING)
     target_compile_options(rsl_config PRIVATE -g -O0 --coverage)
     target_link_libraries(rsl_config PRIVATE --coverage)
   endif()
+endif()
+
+if (BUILD_EXAMPLES)
+  add_subdirectory(example)
 endif()

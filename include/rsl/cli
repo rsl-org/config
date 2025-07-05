@@ -1,0 +1,117 @@
+#pragma once
+
+#include <meta>
+#include <cstdio>
+#include <print>
+#include <ranges>
+#include <utility>
+#include <vector>
+#include <string>
+#include <string_view>
+
+#include <print>
+
+#include <rsl/span>
+#include <rsl/string_view>
+#include <rsl/expect>
+
+// #include "_impl/default_construct.hpp"
+#include "_impl/cli/annotations.hpp"
+#include "_impl/cli/spec.hpp"
+
+namespace rsl {
+
+class ProgramInfo {
+  static std::string& get_name();
+
+public:
+  static void set_name(std::string_view arg0);
+  static std::string_view name() { return get_name(); }
+};
+
+class CLI {
+  static void print_help(_cli_impl::Spec const& spec,
+                         std::string_view program_name,
+                         std::string_view description);
+
+public:
+  static constexpr annotations::Option option;
+  static constexpr auto value = rsl::placeholders::_0;
+
+  using shorthand   = annotations::Shorthand;
+  using description = annotations::Description;
+
+  template <typename T>
+  [[= option]] [[noreturn]]
+  static void help() {
+    constexpr static _cli_impl::Spec spec{remove_cvref(^^T)};
+    auto program_name = ProgramInfo::name();
+    auto description  = std::string_view{};
+    if (auto desc = annotation_of_type<annotations::Description>(^^T); desc) {
+      description = desc->data;
+    }
+    print_help(spec, program_name, description);
+  }
+};
+
+template <typename T>
+T parse_args(std::vector<std::string_view> args_in) {
+  static constexpr _cli_impl::Spec spec{^^T};
+  auto parser          = _cli_impl::ArgParser{args_in};
+  auto& [args, cursor] = parser;
+
+  ProgramInfo::set_name(args[0]);
+  cursor = 1;
+
+  std::vector<_cli_impl::Argument::Unevaluated> parsed_args{};
+  for (auto Arg : spec.arguments) {
+    _cli_impl::Argument::Unevaluated argument{};
+    if ((argument.*Arg.parse)(parser)) {
+      parsed_args.push_back(argument);
+    } else {
+      break;
+    }
+  }
+
+  std::vector<typename _cli_impl::Option::Unevaluated> parsed_opts{};
+  auto [... Cmds] = [:spec.commands:];
+  auto [... Opts] = [:spec.options:];
+
+  while (parser.valid()) {
+    bool found = false;
+    typename _cli_impl::Option::Unevaluated option{};
+
+    if (((option.*Cmds.parse)(parser) || ...)) {
+      // run commands right away
+      option(nullptr);
+      continue;
+    }
+
+    found = ((option.*Opts.parse)(parser) || ...);
+    if (!found) {
+      parser.fail("Could not find option `{}`", parser.current());
+    }
+    parsed_opts.push_back(option);
+  }
+
+  _impl::ArgumentTuple<T> args_tuple;
+  for (auto argument : parsed_args) {
+    argument(&args_tuple);
+  }
+
+  for (auto arg : spec.arguments | std::views::drop(parsed_args.size())) {
+    if (!arg.is_optional) {
+      parser.fail("Missing required argument `{}`", arg.name);
+    }
+  }
+
+  T object = _impl::default_construct<T>(args_tuple);
+
+  // run options
+  for (auto&& option : parsed_opts) {
+    option(&object);
+  }
+
+  return object;
+}
+}  // namespace rsl
