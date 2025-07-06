@@ -51,6 +51,7 @@ public:
       description = desc->data;
     }
     print_help(spec, program_name, description);
+    std::exit(0);
   }
 };
 

@@ -48,19 +48,19 @@ struct Spec {
     }
 
     consteval void parse_base(std::meta::info r) {
-      // if (meta::is_derived_from(dealias(r), ^^CLI)) {
-      //   for (auto fnc_template :
-      //        members_of(^^CLI) | std::views::filter(std::meta::is_function_template)) {
-      //     if (!can_substitute(fnc_template, {r})) {
-      //       continue;
-      //     }
+      if (extract<bool>(substitute(^^std::derived_from, {dealias(r), ^^CLI}))) {
+        for (auto fnc_template : members_of(^^CLI, std::meta::access_context::current()) |
+                                     std::views::filter(std::meta::is_function_template)) {
+          if (!can_substitute(fnc_template, {r})) {
+            continue;
+          }
 
-      //     auto fnc = substitute(fnc_template, {r});
-      //     if (meta::has_annotation<annotations::Option>(fnc)) {
-      //       commands.emplace_back(identifier_of(fnc_template), fnc);
-      //     }
-      //   }
-      // }
+          auto fnc = substitute(fnc_template, {r});
+          if (meta::has_annotation<annotations::Option>(fnc)) {
+            commands.emplace_back(identifier_of(fnc_template), fnc);
+          }
+        }
+      }
     }
 
     consteval bool parse_argument(std::meta::info r) {
