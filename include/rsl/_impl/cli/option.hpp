@@ -2,6 +2,7 @@
 #include <meta>
 #include <vector>
 #include <string_view>
+#include <optional>
 
 #include <rsl/string_view>
 #include <rsl/string_constant>
@@ -67,16 +68,16 @@ struct Option {
 
   using parser_type = bool (Unevaluated::*)(ArgParser&);
 
-  parser_type parse;
+  parser_type parse = nullptr;
   rsl::string_view name;
-  rsl::string_view description = "";
+  // rsl::string_view description = "";
   rsl::span<Argument const> arguments;
 
   consteval Option(std::string_view name, std::meta::info reflection)
       : name(std::define_static_string(name)) {
-    if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
-      description = desc->data;
-    }
+    // if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
+    //   description = desc->data;
+    // }
     std::vector<Argument> args;
     std::size_t index = 0;
     if (is_object_type(type_of(reflection))) {

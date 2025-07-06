@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <meta>
+#include <optional>
 
 #include <rsl/string_view>
 #include <rsl/span>
@@ -12,7 +13,7 @@
 #include "annotations.hpp"
 
 namespace rsl {
-  struct CLI;
+struct CLI;
 }
 
 namespace rsl::_cli_impl {
@@ -96,7 +97,7 @@ struct Spec {
       if (is_nonstatic_data_member(r)) {
         if (!has_default_member_initializer(r)) {
           rsl::compile_error(std::string("Option ") + identifier_of(r) +
-                        " lacks a default member initializer.");
+                             " lacks a default member initializer.");
         }
       } else if (!is_function(r) || is_static_member(r)) {
         return false;
@@ -158,8 +159,60 @@ struct Spec {
     parser.validate();
     // bases     = define_static_array(parser.bases);
     arguments = define_static_array(parser.arguments);
-    // commands  = define_static_array(parser.commands);
-    // options   = define_static_array(parser.options);
+    commands  = define_static_array(parser.commands);
+    options   = define_static_array(parser.options);
+  }
+
+  std::vector<Argument::Unevaluated> parse_arguments(ArgParser& parser) const {
+    std::vector<Argument::Unevaluated> parsed_args;
+    for (auto Arg : arguments) {
+      Argument::Unevaluated argument{};
+      if (!(argument.*Arg.parse)(parser)) {
+        // failed to parse argument - bail out
+        return parsed_args;
+      }
+      parsed_args.push_back(argument);
+    }
+    return parsed_args;
+  }
+
+  bool parse_as_command(ArgParser& parser) const {
+    Option::Unevaluated option;
+    for (auto cmd : commands) {
+      if ((option.*cmd.parse)(parser)) {
+        // run commands right away
+        option(nullptr);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  std::optional<Option::Unevaluated> parse_as_option(ArgParser& parser) const {
+    Option::Unevaluated option;
+    for (auto opt : options) {
+      if ((option.*opt.parse)(parser)) {
+        return option;
+      }
+    }
+
+    return {};
+  }
+
+  std::vector<Option::Unevaluated> parse_options(ArgParser& parser) const {
+    std::vector<Option::Unevaluated> parsed_opts{};
+    while (parser.valid()) {
+      if (parse_as_command(parser)) {
+        continue;
+      }
+
+      auto unevaluated = parse_as_option(parser);
+      if (!unevaluated) {
+        parser.fail("Could not find option `{}`", parser.current());
+      }
+      parsed_opts.push_back(*unevaluated);
+    }
+    return parsed_opts;
   }
 };
 }  // namespace rsl::_cli_impl

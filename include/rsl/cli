@@ -63,36 +63,8 @@ T parse_args(std::vector<std::string_view> args_in) {
   ProgramInfo::set_name(args[0]);
   cursor = 1;
 
-  std::vector<_cli_impl::Argument::Unevaluated> parsed_args{};
-  for (auto Arg : spec.arguments) {
-    _cli_impl::Argument::Unevaluated argument{};
-    if ((argument.*Arg.parse)(parser)) {
-      parsed_args.push_back(argument);
-    } else {
-      break;
-    }
-  }
-
-  std::vector<typename _cli_impl::Option::Unevaluated> parsed_opts{};
-  auto [... Cmds] = [:spec.commands:];
-  auto [... Opts] = [:spec.options:];
-
-  while (parser.valid()) {
-    bool found = false;
-    typename _cli_impl::Option::Unevaluated option{};
-
-    if (((option.*Cmds.parse)(parser) || ...)) {
-      // run commands right away
-      option(nullptr);
-      continue;
-    }
-
-    found = ((option.*Opts.parse)(parser) || ...);
-    if (!found) {
-      parser.fail("Could not find option `{}`", parser.current());
-    }
-    parsed_opts.push_back(option);
-  }
+  auto parsed_args = spec.parse_arguments(parser);
+  auto parsed_opts = spec.parse_options(parser);
 
   _impl::ArgumentTuple<T> args_tuple;
   for (auto argument : parsed_args) {
