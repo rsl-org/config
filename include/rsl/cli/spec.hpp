@@ -15,7 +15,7 @@
 namespace rsl {
 struct cli;
 struct config;
-}
+}  // namespace rsl
 
 namespace rsl::_cli_impl {
 
@@ -35,8 +35,12 @@ struct Spec {
     // but cannot be used in combination with variadic or optional arguments
     std::vector<Spec> subcommands;
 
+    bool allow_positional;
+
+    consteval explicit Parser(bool allow_positional = true) : allow_positional(allow_positional) {}
+
     consteval void parse(std::meta::info r) {
-      auto ctx             = std::meta::access_context::current();
+      auto ctx = std::meta::access_context::current();
       for (auto base : bases_of(r, ctx)) {
         parse_base(r, base);
       }
@@ -77,12 +81,30 @@ struct Spec {
         return false;
       }
 
-      if (!meta::has_annotation(r, ^^annotations::Positional)) {
-        return false;
+      if (meta::has_annotation(r, ^^annotations::Positional)) {
+        if (!allow_positional) {
+          compile_error("Positional arguments are only supported at the config root.");
+        }
+        arguments.emplace_back(idx, r);
+        return true;
       }
 
-      arguments.emplace_back(idx, r);
-      return true;
+      if (extract<bool>(substitute(^^std::derived_from, {type_of(r), ^^config}))) {
+        auto name = identifier_of(r);
+
+        auto subparser = Parser(false);
+        subparser.parse(type_of(r));
+
+        for (auto option : subparser.options) {
+          option.name = std::define_static_string(std::string(name) + ':' + option.name);
+          options.push_back(option);
+        }
+        for (auto command : subparser.commands) {
+          command.name = std::define_static_string(std::string(name) + ':' + command.name);
+          options.push_back(command);
+        }
+      }
+      return false;
     }
 
     consteval bool parse_command(std::meta::info r) {

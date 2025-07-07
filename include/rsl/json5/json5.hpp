@@ -8,9 +8,12 @@
 #include <rsl/_impl/default_construct.hpp>
 
 namespace rsl::json5 {
-struct Parser;
-struct Value;
+template <typename T>
+struct Serializer;
 
+struct Value;
+template <typename T>
+using Tag = std::type_identity<T>;
 using Object = std::unordered_map<std::string, Value>;
 using Array  = std::vector<Value>;
 
@@ -31,8 +34,9 @@ struct Value {
       throw std::runtime_error("unimplemented");
     } else if constexpr (std::is_aggregate_v<T>) {
       return as_aggregate<T>();
+    } else {
+      return Serializer<T>::deserialize(*this);
     }
-    throw std::runtime_error("unimplemented");
   }
 
   template <typename T>
@@ -97,5 +101,16 @@ struct Parser {
 };
 
 Value load(std::string_view path);
+
+template <typename T>
+Value from(T const& obj) {
+  return Serializer<T>::serialize(obj);
+}
+
+template <typename T>
+T to(Value const& json) {
+  return Serializer<T>::deserialize(json);
+}
+
 
 }  // namespace rsl::json5

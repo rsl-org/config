@@ -191,9 +191,9 @@ Array Value::as_array() const {
 }
 
 bool Value::as_bool() const {
-  if (raw == "true")
+  if (raw == "true" || raw == "1")
     return true;
-  if (raw == "false")
+  if (raw == "false" || raw == "0")
     return false;
   throw std::runtime_error("Could not extract as bool");
 }
