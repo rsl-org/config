@@ -8,7 +8,7 @@
 
 namespace rsl::annotations {
 constexpr inline struct Option {} option {};
-constexpr inline struct Descend {} descend {};
+constexpr inline struct Positional {} positional {};
 
 namespace _impl {
 struct StringAnnotation {
@@ -35,7 +35,5 @@ struct Shorthand : _impl::StringAnnotation {
 struct Description : _impl::StringAnnotation {
     using _impl::StringAnnotation::StringAnnotation;
 };
-
-using rsl::_expect_impl::Expect;
 
 }  // namespace rsl::annotations

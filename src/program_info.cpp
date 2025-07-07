@@ -1,5 +1,5 @@
 #include <filesystem>
-#include <rsl/cli>
+#include <rsl/config>
 
 namespace rsl {
 std::string& ProgramInfo::get_name() {

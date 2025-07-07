@@ -13,7 +13,7 @@
 #include "annotations.hpp"
 
 namespace rsl {
-struct CLI;
+struct config;
 }
 
 namespace rsl::_cli_impl {
@@ -39,17 +39,23 @@ struct Spec {
       //   bases.emplace_back(type_of(base));
       // }
 
-      for (auto member : members_of(r, std::meta::access_context::current())) {
-        if (!is_public(member) || !has_identifier(member)) {
+      auto ctx             = std::meta::access_context::current();
+      std::size_t nsdm_idx = bases_of(r, ctx).size();
+      for (auto member : members_of(r, ctx)) {
+        if (!has_identifier(member) || !is_public(member)) {
           continue;
         }
-        (void)(parse_argument(member) || parse_command(member) || parse_option(member));
+
+        (void)(parse_argument(nsdm_idx, member) || parse_command(member) || parse_option(member));
+        if (is_nonstatic_data_member(member)) {
+          ++nsdm_idx;
+        }
       }
     }
 
     consteval void parse_base(std::meta::info r) {
-      if (extract<bool>(substitute(^^std::derived_from, {dealias(r), ^^CLI}))) {
-        for (auto fnc_template : members_of(^^CLI, std::meta::access_context::current()) |
+      if (extract<bool>(substitute(^^std::derived_from, {dealias(r), ^^config}))) {
+        for (auto fnc_template : members_of(^^config, std::meta::access_context::current()) |
                                      std::views::filter(std::meta::is_function_template)) {
           if (!can_substitute(fnc_template, {r})) {
             continue;
@@ -63,18 +69,16 @@ struct Spec {
       }
     }
 
-    consteval bool parse_argument(std::meta::info r) {
+    consteval bool parse_argument(std::size_t idx, std::meta::info r) {
       if (!is_nonstatic_data_member(r)) {
         return false;
       }
 
-      if (meta::has_annotation(r, ^^annotations::Option) ||
-          meta::has_annotation(r, ^^annotations::Descend)) {
+      if (!meta::has_annotation(r, ^^annotations::Positional)) {
         return false;
       }
 
-      auto base_offset = bases_of(parent_of(r), std::meta::access_context::current()).size();
-      arguments.emplace_back(base_offset + arguments.size(), r);
+      arguments.emplace_back(idx, r);
       return true;
     }
 

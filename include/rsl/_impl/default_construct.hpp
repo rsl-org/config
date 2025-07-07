@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <tuple> // use rsl::tuple?
 #include <utility>
+#include <stdexcept>
 
 #include <rsl/meta_traits>
 
@@ -70,7 +71,7 @@ decltype(auto) do_visit(F visitor, std::size_t index, Args&&... extra_args) {
       return visitor(std::make_index_sequence<Offset + Idx>(), std::forward<Args>(extra_args)...);
     }
   }
-  throw "invalid";
+  throw std::runtime_error("invalid");
 }
 
 template <std::size_t Bases, std::size_t Required, typename T, typename F, typename... Args>
@@ -90,7 +91,7 @@ decltype(auto) visit(F visitor, ArgumentTuple<T> const& args, Args&&... extra_ar
 
   if (index < Required) {
     // fail more gracefully
-    throw "not all required arguments are given";
+    throw std::runtime_error("not all required arguments are given");
   }
 
   if constexpr (branches == 0) {

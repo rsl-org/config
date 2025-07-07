@@ -1,8 +1,14 @@
 #include <print>
-#include <rsl/cli>
+#include <filesystem>
+#include <rsl/config>
 
 namespace rsl {
-void CLI::print_help(_cli_impl::Spec const& spec,
+std::string& config::get_config_path() {
+  static std::string config_path{ std::filesystem::current_path() / "settings.json5" };
+  return config_path;
+}
+
+void config::print_help(_cli_impl::Spec const& spec,
                      std::string_view program_name,
                      std::string_view description) {
   std::string arguments{};
