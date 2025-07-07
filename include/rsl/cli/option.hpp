@@ -17,13 +17,13 @@ namespace rsl::_cli_impl {
 struct Option {
   struct Unevaluated {
     using handler_type = void (Unevaluated::*)(void*) const;
-    std::vector<Argument::Unevaluated> arguments;
     handler_type handle;
+    std::vector<Argument::Unevaluated> arguments;
     void operator()(void* object) const { (this->*handle)(object); }
 
     template <std::meta::info R>
     void do_handle(void* obj) const {
-      _impl::ArgumentTuple<typename [:type_of(R):]> arg_tuple;
+      _impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
       for (auto arg : arguments) {
         arg(&arg_tuple);
       }
@@ -37,41 +37,40 @@ struct Option {
         static_assert(false, "Unsupported handler type.");
       }
     }
-
-    template <rsl::string_constant name, std::meta::info R, Argument... args>
-    bool do_parse(ArgParser& parser) {
-      static constexpr auto current_handler =
-          extract<handler_type>(substitute(^^do_handle, {reflect_constant(R)}));
-      auto arg_name = parser.current();
-      arg_name.remove_prefix(2);
-      if (arg_name != name) {
-        return false;
-      }
-      ++parser.cursor;  // parser will not unwind after this point
-
-      template for (constexpr auto Idx : std::views::iota(0zu, sizeof...(args))) {
-        Argument::Unevaluated argument;
-        if ((argument.*args...[Idx].parse)(parser)) {
-          arguments.push_back(argument);
-        } else {
-          if (!args...[Idx].is_optional) {
-            parser.fail("Missing argument {} of option {}", args...[Idx].name, arg_name);
-            break;
-          }
-        }
-      };
-
-      handle = current_handler;
-      return true;
-    }
   };
 
-  using parser_type = bool (Unevaluated::*)(ArgParser&);
-
-  parser_type parse = nullptr;
+  Unevaluated::handler_type _impl_handler = nullptr;
   rsl::string_view name;
   // rsl::string_view description = "";
   rsl::span<Argument const> arguments;
+
+  std::optional<Unevaluated> parse(ArgParser& parser) {
+    auto opt_name = parser.current();
+    if (!opt_name.starts_with("--")) {
+      return {};
+    }
+
+    opt_name.remove_prefix(2);
+    if (opt_name != name) {
+      return {};
+    }
+    ++parser.cursor;  // parser will not unwind after this point
+
+    Unevaluated option{.handle = _impl_handler};
+    for (auto arg : arguments) {
+      auto argument = arg.parse(parser);
+      if (argument) {
+        option.arguments.push_back(*argument);
+      } else {
+        if (!arg.is_optional) {
+          parser.fail("Missing argument {} of option {}", arg.name, name);
+          break;
+        }
+      }
+    };
+
+    return option;
+  }
 
   consteval Option(std::string_view name, std::meta::info reflection)
       : name(std::define_static_string(name)) {
@@ -89,13 +88,8 @@ struct Option {
     }
 
     arguments = std::define_static_array(args);
-
-    std::vector parse_args = {std::meta::reflect_constant_string(name), reflect_constant(reflection)};
-    for (auto arg : args) {
-      parse_args.push_back(std::meta::reflect_constant(arg));
-    }
-
-    parse = extract<parser_type>(substitute(^^Unevaluated::template do_parse, parse_args));
+    _impl_handler   = extract<Unevaluated::handler_type>(
+        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection)}));
   }
 };
-}
+}  // namespace rsl::_cli_impl

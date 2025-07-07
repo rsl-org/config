@@ -199,23 +199,21 @@ struct Spec {
 
   std::vector<Argument::Unevaluated> parse_arguments(ArgParser& parser) const {
     std::vector<Argument::Unevaluated> parsed_args;
-    for (auto Arg : arguments) {
-      Argument::Unevaluated argument{};
-      if (!(argument.*Arg.parse)(parser)) {
+    for (auto arg : arguments) {
+      auto argument = arg.parse(parser);
+      if (!argument) {
         // failed to parse argument - bail out
         return parsed_args;
       }
-      parsed_args.push_back(argument);
+      parsed_args.push_back(*argument);
     }
     return parsed_args;
   }
 
   bool parse_as_command(ArgParser& parser) const {
-    Option::Unevaluated option;
     for (auto cmd : commands) {
-      if ((option.*cmd.parse)(parser)) {
-        // run commands right away
-        option(nullptr);
+      if (auto unevaluated = cmd.parse(parser); unevaluated) {
+        (*unevaluated)(nullptr);
         return true;
       }
     }
@@ -223,10 +221,9 @@ struct Spec {
   }
 
   std::optional<Option::Unevaluated> parse_as_option(ArgParser& parser) const {
-    Option::Unevaluated option;
     for (auto opt : options) {
-      if ((option.*opt.parse)(parser)) {
-        return option;
+      if (auto unevaluated = opt.parse(parser); unevaluated) {
+        return unevaluated;
       }
     }
 

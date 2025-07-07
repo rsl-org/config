@@ -19,8 +19,8 @@ struct Argument {
   struct Unevaluated {
     using handler_type = void (Unevaluated::*)(void*) const;
 
-    std::string_view argument;
     handler_type handle = nullptr;
+    std::string_view argument;
 
     void operator()(void* args) const { (this->*handle)(args); }
 
@@ -62,42 +62,33 @@ struct Argument {
       }
       get<Idx>(*static_cast<arg_tuple*>(arguments)) = value;
     }
-
-    template <std::size_t Idx, std::meta::info R>
-    bool do_parse(ArgParser& parser) {
-      static constexpr auto current_handler = extract<handler_type>(
-          substitute(^^do_handle, {std::meta::reflect_constant(Idx), reflect_constant(R)}));
-
-      if (!parser.valid()) {
-        return false;
-      }
-
-      auto current = parser.current();
-      if (current[0] == '-') {
-        if (current.size() > 1 && current[1] >= '0' && current[1] <= '9') {
-          ++parser.cursor;
-          return true;
-        }
-        return false;
-      }
-
-      argument = current;
-      handle   = current_handler;
-      ++parser.cursor;
-      return true;
-    }
   };
 
-  using parser_type = bool (Unevaluated::*)(ArgParser&);
-  std::size_t index;
-  parser_type parse;
 
+  Unevaluated::handler_type _impl_handler = nullptr;
+  
+  std::size_t index;
   rsl::string_view name;
   rsl::string_view type;
   rsl::string_view description;
   rsl::string_view constraint;
   bool is_optional = false;
   bool is_variadic = false;  // currently never set
+
+  std::optional<Unevaluated> parse(ArgParser& parser) {
+    if (!parser.valid()) {
+      return {};
+    }
+
+    auto current = parser.current();    
+    if (current[0] == '-' && !(current.size() > 1 && current[1] >= '0' && current[1] <= '9')) {
+      // this is probably an option, bail out
+      return {};
+    }
+    ++parser.cursor;
+
+    return Unevaluated{.handle = _impl_handler, .argument=current};
+  }
 
   template <std::meta::info R, auto Constraint>
   constexpr char const* stringify_constraint() {
@@ -108,9 +99,6 @@ struct Argument {
 
   consteval Argument(std::size_t idx, std::meta::info reflection)
       : index(idx)
-      , parse(extract<parser_type>(
-            substitute(^^Unevaluated::template do_parse,
-                       {std::meta::reflect_constant(idx), reflect_constant(reflection)})))
       , name(std::define_static_string(identifier_of(reflection)))
       , type(std::define_static_string(
             display_string_of(type_of(reflection))))  // TODO clean at this point?
@@ -129,6 +117,10 @@ struct Argument {
                                  {reflect_constant(reflection), constant_of(annotation)})))();
       }
     }
+
+    _impl_handler = extract<Unevaluated::handler_type>(
+        substitute(^^Unevaluated::do_handle,
+                   {std::meta::reflect_constant(idx), reflect_constant(reflection)}));
   }
 };
 }  // namespace rsl::_cli_impl
