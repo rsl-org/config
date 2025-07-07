@@ -2,22 +2,22 @@
 
 #include <rsl/config>
 
-struct Arguments : rsl::config {
-  // static inline std::string config_path = "foo";
-  [[=positional]] std::string text;
+struct Test : rsl::config {
   bool from_config;
+  
+  [[=option]]
+  static void zoinks(){}
+};
+
+struct Arguments : rsl::cli {
+  [[=positional]] std::string text;
+  Test foo;
   [[=positional]] int times = 5;
 
   [[=option]]
   void test(int x) {
     std::println("text: {}, times: {}, x: {}", text, times, x);
   }
-
-  // [[=option]]
-  // static void config(std::string cfg_path) {
-  //   std::println("config() invoked");
-  //   Arguments::config_path = cfg_path;
-  // }
 };
 
 int main(int argc, char** argv) {

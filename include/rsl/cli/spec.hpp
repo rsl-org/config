@@ -13,6 +13,7 @@
 #include "annotations.hpp"
 
 namespace rsl {
+struct cli;
 struct config;
 }
 
@@ -35,11 +36,11 @@ struct Spec {
     std::vector<Spec> subcommands;
 
     consteval void parse(std::meta::info r) {
-      // for (auto base : bases_of(r)) {
-      //   bases.emplace_back(type_of(base));
-      // }
-
       auto ctx             = std::meta::access_context::current();
+      for (auto base : bases_of(r, ctx)) {
+        parse_base(r, base);
+      }
+
       std::size_t nsdm_idx = bases_of(r, ctx).size();
       for (auto member : members_of(r, ctx)) {
         if (!has_identifier(member) || !is_public(member)) {
@@ -53,19 +54,21 @@ struct Spec {
       }
     }
 
-    consteval void parse_base(std::meta::info r) {
-      if (extract<bool>(substitute(^^std::derived_from, {dealias(r), ^^config}))) {
-        for (auto fnc_template : members_of(^^config, std::meta::access_context::current()) |
-                                     std::views::filter(std::meta::is_function_template)) {
-          if (!can_substitute(fnc_template, {r})) {
+    consteval void parse_base(std::meta::info self, std::meta::info r) {
+      if (extract<bool>(substitute(^^std::convertible_to, {type_of(r), ^^config}))) {
+        // special case built-in bases. These need to access the child type
+
+        for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
+          if (!is_function_template(fnc_template) || !can_substitute(fnc_template, {self})) {
             continue;
           }
 
-          auto fnc = substitute(fnc_template, {r});
+          auto fnc = substitute(fnc_template, {self});
           if (meta::has_annotation<annotations::Option>(fnc)) {
             commands.emplace_back(identifier_of(fnc_template), fnc);
           }
         }
+        bases.push_back({});
       }
     }
 
@@ -150,7 +153,7 @@ struct Spec {
   };
 
   rsl::string_view name;
-  rsl::span<rsl::span<Argument const>> bases;
+  rsl::span<rsl::span<Argument const> const> bases;
   rsl::span<Argument const> arguments;
   rsl::span<Option const> commands;
   rsl::span<Option const> options;
@@ -159,9 +162,14 @@ struct Spec {
     auto type   = is_type(r) ? r : type_of(r);
     auto parser = Parser();
     parser.parse(type);
-    parser.parse_base(type);
+    // parser.parse_base(type);
     parser.validate();
-    // bases     = define_static_array(parser.bases);
+    std::vector<rsl::span<Argument const>> meta_bases;
+    for (auto base : parser.bases) {
+      meta_bases.push_back(rsl::span(define_static_array(base)));
+    }
+
+    bases     = define_static_array(meta_bases);
     arguments = define_static_array(parser.arguments);
     commands  = define_static_array(parser.commands);
     options   = define_static_array(parser.options);

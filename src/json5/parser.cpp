@@ -32,9 +32,42 @@ void Parser::expect_more() const {
   }
 }
 
+bool Parser::skip_comment() {
+  if (cursor == file.end()){
+    return false;
+  }
+
+  if (*cursor == '/') {
+    ++cursor;
+    expect_more();
+    std::string content;
+    if (*cursor == '/') {
+      ++cursor;
+      parse_until({'\n'}, content);
+    } else if (*cursor == '*') {
+      ++cursor;
+      parse_until({'*', '/'}, content);
+    } else {
+      // roll back - this parse was invalid
+      --cursor;
+      return false;
+    }
+    // TODO we probably want to keep comments to round-trip properly
+    // std::println("Comment: {}", content);
+    return true;
+  }
+  return false;
+}
+
 void Parser::skip_whitespace() {
   while (is_whitespace(*cursor))
     cursor++;
+  
+  if (skip_comment()) {
+    // comment found - recurse
+    skip_whitespace();
+  }
+  
 };
 
 void Parser::expect_consume(char c) {

@@ -80,6 +80,7 @@ struct Parser {
   std::string_view::iterator cursor = std::begin(file);
 
   void skip_whitespace();
+  bool skip_comment();
   void expect_consume(char c);
   void maybe_consume(char c);
   void parse_until(std::vector<char> delims, std::string& out);

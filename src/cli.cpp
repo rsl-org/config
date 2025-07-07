@@ -3,7 +3,7 @@
 #include <rsl/config>
 
 namespace rsl {
-std::string& config::get_config_path() {
+std::string& cli::get_config_path() {
   static std::string config_path{ std::filesystem::current_path() / "settings.json5" };
   return config_path;
 }
