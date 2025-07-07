@@ -4,6 +4,7 @@
 #include <vector>
 #include <charconv>
 
+#include <rsl/constexpr_assert>
 #include <rsl/_impl/default_construct.hpp>
 
 namespace rsl::json5 {
@@ -37,14 +38,16 @@ struct Value {
   template <typename T>
   void update_argtuple(_impl::ArgumentTuple<T>& args) const {
     Object obj = as_object();
-
+    constexpr_assert(obj.size() != 0);
     constexpr auto ctx     = std::meta::access_context::current();
     constexpr auto members = std::define_static_array(nonstatic_data_members_of(dealias(^^T), ctx));
+    constexpr auto base_count = bases_of(dealias(^^T), ctx).size();
     template for (constexpr auto Idx : std::views::iota(0zu, members.size())) {
       constexpr auto name = std::define_static_string(identifier_of(members[Idx]));
       auto it             = obj.find(name);
       if (it != obj.end()) {
-        get<Idx>(args) = it->second.template as<typename[:type_of(members[Idx]):]>();
+        using target_type = [:type_of(members[Idx]):];
+        get<base_count + Idx>(args) = it->second.template as<target_type>();
       }
     }
   }
@@ -91,5 +94,7 @@ struct Parser {
 
   void expect_more() const;
 };
+
+Value load(std::string_view path);
 
 }  // namespace rsl::json5

@@ -19,6 +19,8 @@
 #include <rsl/cli/annotations.hpp>
 #include <rsl/cli/spec.hpp>
 
+#include <rsl/json5/json5.hpp>
+
 namespace rsl {
 
 class ProgramInfo {
@@ -78,18 +80,19 @@ T load_config(std::vector<std::string_view> args_in) {
 
   _impl::ArgumentTuple<T> args_tuple;
 
-  auto config = T::config_path();
-  std::println("config: {}", config);
+  auto config = json5::load(T::config_path());
+  config.template update_argtuple<T>(args_tuple);
 
+  
   for (auto argument : parsed_args) {
     argument(&args_tuple);
   }
 
-  for (auto arg : spec.arguments | std::views::drop(parsed_args.size())) {
-    if (!arg.is_optional) {
-      parser.fail("Missing required argument `{}`", arg.name);
-    }
-  }
+  // for (auto arg : spec.arguments | std::views::drop(parsed_args.size())) {
+  //   if (!arg.is_optional) {
+  //     parser.fail("Missing required argument `{}`", arg.name);
+  //   }
+  // }
 
   T object = _impl::default_construct<T>(args_tuple);
 

@@ -1,7 +1,9 @@
+#include <filesystem>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <format>
-#include <print>
 
 #include <rsl/json5/json5.hpp>
 
@@ -169,6 +171,18 @@ std::string Value::as_string() const {
     throw std::runtime_error("Could not extract as string.");
   }
   return content;
+}
+
+Value load(std::string_view path) {
+  auto config_path = std::filesystem::path(path);
+  if (!exists(config_path)) {
+    throw std::runtime_error(std::format("File {} does not exist.", path));
+  }
+  auto in = std::ifstream(config_path);
+  std::stringstream buffer;
+  buffer << in.rdbuf();
+
+  return Value(buffer.str());
 }
 
 }  // namespace rsl::json5
