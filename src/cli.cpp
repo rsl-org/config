@@ -27,10 +27,7 @@ void config::print_help(_cli_impl::Spec const& spec,
 
   std::println("\nArguments:");
   for (auto argument : spec.arguments) {
-    std::string constraint = argument.constraint.empty()
-                                 ? ""
-                                 : std::format("\n{:<8}requires: {}", "", argument.constraint);
-    std::println("    {} -> {}{}", argument.name, argument.type, constraint);
+    std::println("    {} -> {}", argument.name, argument.type);
   }
 
   std::println("\nOptions:");
@@ -54,29 +51,23 @@ void config::print_help(_cli_impl::Spec const& spec,
     }
 
     std::println("    --{} {}", opt.name, params);
-    std::size_t offset = max_name_length + 4 + 4;
+    std::size_t offset = 8;
     // if (!opt.description.empty()) {
     //   std::println("{:<{}}{}\n", "", offset, opt.description);
     // }
 
     if (opt.arguments.size() != 0) {
-      std::println("{:<{}}Arguments:", "", offset);
       for (auto argument : opt.arguments) {
-        std::string constraint =
-            argument.constraint.empty()
-                ? ""
-                : std::format("\n{:<{}}requires: {}", "", offset + 8, argument.constraint);
         char const* optional = "";
         if (argument.is_optional) {
           optional = " (optional)";
         }
-        std::println("{:<{}}{} -> {}{}{}",
+        std::println("{:<{}}{} -> {}{}",
                      "",
-                     offset + 4,
+                     offset,
                      argument.name,
                      argument.type,
-                     optional,
-                     constraint);
+                     optional);
       }
     }
   };
