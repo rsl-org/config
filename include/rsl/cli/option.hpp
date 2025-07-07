@@ -41,7 +41,7 @@ struct Option {
 
   Unevaluated::handler_type _impl_handler = nullptr;
   rsl::string_view name;
-  // rsl::string_view description = "";
+  rsl::string_view description;
   rsl::span<Argument const> arguments;
 
   std::optional<Unevaluated> parse(ArgParser& parser) {
@@ -74,9 +74,10 @@ struct Option {
 
   consteval Option(std::string_view name, std::meta::info reflection)
       : name(std::define_static_string(name)) {
-    // if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
-    //   description = desc->data;
-    // }
+    if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
+      description = std::define_static_string(desc->data);
+    }
+
     std::vector<Argument> args;
     std::size_t index = 0;
     if (is_object_type(type_of(reflection))) {
