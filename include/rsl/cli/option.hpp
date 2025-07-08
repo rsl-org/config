@@ -8,23 +8,83 @@
 #include <rsl/string_constant>
 #include <rsl/span>
 
+#include "argument.hpp"
 #include "parser.hpp"
 #include "annotations.hpp"
 #include <rsl/_impl/default_construct.hpp>
 
 namespace rsl::_cli_impl {
 
+struct Parameter {
+  struct Unevaluated {
+    using handler_type = void (Unevaluated::*)(void*) const;
+
+    handler_type handle = nullptr;
+    std::string_view argument;
+
+    void operator()(void* args) const { (this->*handle)(args); }
+
+    template <std::size_t Idx, std::meta::info R, std::meta::info Parent>
+    void do_handle(void* arguments) const {
+      constexpr static auto type = remove_cvref(type_of(R));
+      using parent               = [:Parent == std::meta::info{} ? type : type_of(Parent):];
+      using arg_tuple            = _impl::ArgumentTuple<parent>;
+
+      auto value = parse_value<typename[:type:]>(argument);
+      get<Idx>(*static_cast<arg_tuple*>(arguments)) = value;
+    }
+  };
+
+  Unevaluated::handler_type _impl_handler = nullptr;
+
+  std::size_t index;
+  rsl::string_view name;
+  rsl::string_view type;
+  bool is_optional = false;
+  bool is_variadic = false;  // currently never set
+
+  std::optional<Unevaluated> parse(ArgParser& parser) {
+    if (!parser.valid()) {
+      return {};
+    }
+
+    auto current = parser.current();
+    if (current[0] == '-' && (current.size() <= 1 || current[1] < '0' || current[1] > '9')) {
+      // this is probably an option, bail out
+      return {};
+    }
+    ++parser.cursor;
+
+    return Unevaluated{.handle = _impl_handler, .argument = current};
+  }
+
+  consteval Parameter(std::size_t idx, std::meta::info reflection, std::meta::info parent)
+      : index(idx)
+      , name(std::define_static_string(identifier_of(reflection)))
+      , type(std::define_static_string(
+            display_string_of(type_of(reflection))))  // TODO clean at this point?
+      , is_optional(is_function_parameter(reflection)
+                        ? has_default_argument(reflection)
+                        : has_default_member_initializer(reflection)) {
+    _impl_handler = extract<Unevaluated::handler_type>(substitute(^^Unevaluated::do_handle,
+                                                                  {std::meta::reflect_constant(idx),
+                                                                   reflect_constant(reflection),
+                                                                   reflect_constant(parent)}));
+  }
+};
+
 struct Option {
   struct Unevaluated {
     using handler_type = void (Unevaluated::*)(void*) const;
     handler_type handle;
-    std::vector<Argument::Unevaluated> arguments;
+    std::vector<Parameter::Unevaluated> parameters;
     void operator()(void* object) const { (this->*handle)(object); }
 
     template <std::meta::info R>
     void do_handle(void* obj) const {
       _impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
-      for (auto arg : arguments) {
+
+      for (auto arg : parameters) {
         arg(&arg_tuple);
       }
       if constexpr (meta::nonstatic_member_function<R>) {
@@ -32,7 +92,7 @@ struct Option {
       } else if constexpr (is_function(R)) {
         _impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
-        static_cast<[:parent_of(R):]*>(obj) -> [:R:] = *get<0>(arg_tuple);
+        static_cast<[:parent_of(R):]*>(obj) -> [:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
       } else {
         static_assert(false, "Unsupported handler type.");
       }
@@ -42,7 +102,7 @@ struct Option {
   Unevaluated::handler_type _impl_handler = nullptr;
   rsl::string_view name;
   rsl::string_view description;
-  rsl::span<Argument const> arguments;
+  rsl::span<Parameter const> parameters;
 
   std::optional<Unevaluated> parse(ArgParser& parser) {
     auto opt_name = parser.current();
@@ -57,13 +117,13 @@ struct Option {
     ++parser.cursor;  // parser will not unwind after this point
 
     Unevaluated option{.handle = _impl_handler};
-    for (auto arg : arguments) {
-      auto argument = arg.parse(parser);
-      if (argument) {
-        option.arguments.push_back(*argument);
+    for (auto arg : parameters) {
+      auto parameter = arg.parse(parser);
+      if (parameter) {
+        option.parameters.push_back(*parameter);
       } else {
         if (!arg.is_optional) {
-          parser.fail("Missing argument {} of option {}", arg.name, name);
+          parser.fail("Missing parameter {} of option {}", arg.name, name);
           break;
         }
       }
@@ -78,18 +138,18 @@ struct Option {
       description = std::define_static_string(desc->data);
     }
 
-    std::vector<Argument> args;
+    std::vector<Parameter> args;
     std::size_t index = 0;
     if (is_object_type(type_of(reflection))) {
-      args.emplace_back(index, reflection);
+      args.emplace_back(index, reflection, std::meta::info{});
     } else {
       for (auto param : parameters_of(reflection)) {
-        args.emplace_back(index++, param);
+        args.emplace_back(index++, param, reflection);
       }
     }
 
-    arguments = std::define_static_array(args);
-    _impl_handler   = extract<Unevaluated::handler_type>(
+    parameters    = std::define_static_array(args);
+    _impl_handler = extract<Unevaluated::handler_type>(
         substitute(^^Unevaluated::do_handle, {reflect_constant(reflection)}));
   }
 };

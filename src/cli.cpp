@@ -41,23 +41,19 @@ void config::print_help(_cli_impl::Spec const& spec,
   auto print_option = [&](_cli_impl::Option opt) {
     std::string params;
     bool has_constraints = false;
-    for (auto argument : opt.arguments) {
-      if (argument.is_optional) {
-        params += std::format("[{}] ", argument.name);
+    for (auto parameter : opt.parameters) {
+      if (parameter.is_optional) {
+        params += std::format("[{}] ", parameter.name);
       } else {
-        params += std::format("{} ", argument.name);
+        params += std::format("{} ", parameter.name);
       }
-      has_constraints = !argument.constraint.empty();
     }
 
     std::println("    --{} {}", opt.name, params);
     std::size_t offset = 8;
-    // if (!opt.description.empty()) {
-    //   std::println("{:<{}}{}\n", "", offset, opt.description);
-    // }
 
-    if (opt.arguments.size() != 0) {
-      for (auto argument : opt.arguments) {
+    if (opt.parameters.size() != 0) {
+      for (auto argument : opt.parameters) {
         char const* optional = "";
         if (argument.is_optional) {
           optional = " (optional)";

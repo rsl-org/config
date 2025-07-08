@@ -5,6 +5,8 @@
 #include <format>
 #include <rsl/util/to_string.hpp>
 
+#include <rsl/json5/serializer.hpp>
+
 namespace rsl::_cli_impl {
 struct ArgParser {
   std::span<std::string_view> args;
@@ -23,12 +25,10 @@ struct ArgParser {
 
 template <typename T>
 T parse_value(std::string_view value) {
-  // TODO parse more types
-  if constexpr (std::is_integral_v<T>) {
-    // TODO parse signed, bool etc
-    return util::stou(value);
+  if constexpr (std::same_as<T, std::string>) {
+    return std::string(value);
   } else {
-    return T{value};
+    return json5::Serializer<T>::deserialize(json5::Value{std::string(value)});
   }
 }
 }  // namespace rsl::_cli_impl

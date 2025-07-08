@@ -14,7 +14,14 @@ namespace _impl {
 struct StringAnnotation {
   rsl::string_view data;
 
-  consteval explicit StringAnnotation(std::string_view text) : data(std::define_static_string(text)) {}
+  consteval StringAnnotation() = default;
+  consteval explicit StringAnnotation(std::string_view text) : data(define_static_string(text)) {}
+  
+  consteval StringAnnotation operator()(std::string_view text) {
+    data = define_static_string(text);
+    return *this;
+  }
+  
   constexpr operator std::string_view() const {
     return {data.data(), data.size()};
   }

@@ -20,6 +20,7 @@
 #include <rsl/cli/spec.hpp>
 
 #include <rsl/json5/json5.hpp>
+#include "rsl/_impl/default_construct.hpp"
 
 namespace rsl {
 
@@ -68,11 +69,14 @@ public:
   using shorthand   = annotations::Shorthand;
   using description = annotations::Description;
 
+  template <typename T>
+  void parse_args(int argc, char** argv) {}
+
   static std::string_view config_path() { return get_config_path(); }
 
   template <typename T>
   [[= option]] static void config_path(std::string new_path) {
-    get_config_path() = new_path;
+    get_config_path() = std::move(new_path);
   }
 
   template <typename T>
@@ -82,46 +86,101 @@ public:
   }
 };
 
+namespace _cli_impl {
+struct ParsedArgs {
+  std::string_view program_name;
+  std::vector<Argument::Unevaluated> arguments;
+  std::vector<Option::Unevaluated> options;
+};
+
 template <typename T>
-T load_config(std::vector<std::string_view> args_in) {
+ParsedArgs parse(std::span<std::string_view> args_in) {
   static constexpr _cli_impl::Spec spec{^^T};
-  auto parser          = _cli_impl::ArgParser{args_in};
+  auto parser          = ArgParser{args_in};
   auto& [args, cursor] = parser;
 
-  ProgramInfo::set_name(args[0]);
-  cursor = 1;
+  auto program_name = args_in[0];
+  cursor            = 1;
 
-  auto parsed_args = spec.parse_arguments(parser);
-  auto parsed_opts = spec.parse_options(parser);
+  auto arguments = spec.parse_arguments(parser);
+  auto options   = spec.parse_options(parser);
+  return {program_name, std::move(arguments), std::move(options)};
+}
 
+template <typename T>
+_impl::ArgumentTuple<T> tuple_from_args(std::span<Argument::Unevaluated> args) {
   _impl::ArgumentTuple<T> args_tuple;
 
   auto config = json5::load(T::config_path());
   config.template update_argtuple<T>(args_tuple);
 
-  for (auto argument : parsed_args) {
+  for (auto argument : args) {
     argument(&args_tuple);
   }
 
-  constexpr auto ctx            = std::meta::access_context::current();
-  constexpr static auto members = std::define_static_array(nonstatic_data_members_of(^^T, ctx));
-  constexpr auto base_count     = bases_of(^^T, ctx).size();
+  // constexpr auto ctx            = std::meta::access_context::current();
+  // constexpr static auto members = std::define_static_array(nonstatic_data_members_of(^^T, ctx));
+  // constexpr auto base_count     = bases_of(^^T, ctx).size();
 
-  template for (constexpr auto Idx : std::views::iota(0zu, members.size())) {
-    constexpr static bool has_default = has_default_member_initializer(members[Idx]);
-    constexpr static auto name        = std::define_static_string(identifier_of(members[Idx]));
+  // template for (constexpr auto Idx : std::views::iota(0zu, members.size())) {
+  //   constexpr static bool has_default = has_default_member_initializer(members[Idx]);
+  //   constexpr static auto name        = std::define_static_string(identifier_of(members[Idx]));
 
-    if (!get<base_count + Idx>(args_tuple).has_value() && !has_default) {
-      parser.fail("Missing required argument `{}`", name);
+  //   if (!get<base_count + Idx>(args_tuple).has_value() && !has_default) {
+  //     std::println("Missing required argument `{}`", name);
+  //     std::exit(1);
+  //   }
+  // }
+  return args_tuple;
+}
+
+template <typename T>
+T construct_from_args(std::span<Argument::Unevaluated> args) {
+  auto args_tuple = tuple_from_args<T>(args);
+  return _impl::default_construct<T>(args_tuple);
+}
+
+template <typename T>
+void apply_args(T&& object, std::span<Argument::Unevaluated> args) {
+  using raw_t     = std::remove_cvref_t<T>;
+  auto args_tuple = tuple_from_args<raw_t>(args);
+
+  constexpr auto ctx = std::meta::access_context::current();
+  constexpr auto members =
+      std::define_static_array(nonstatic_data_members_of(dealias(^^raw_t), ctx));
+  constexpr auto base_count = bases_of(dealias(^^raw_t), ctx).size();
+
+  template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
+    if (auto value = get<base_count + Idx>(args_tuple); value) {
+      object.[:members[Idx]:] = *value;
     }
   }
+}
 
-  T object = _impl::default_construct<T>(args_tuple);
-
-  // run options
-  for (auto&& option : parsed_opts) {
+template <typename T>
+void apply_options(T&& object, std::span<Option::Unevaluated> options) {
+  for (auto&& option : options) {
     option(&object);
   }
+}
+}  // namespace _cli_impl
+
+template <typename T>
+void parse_args(T&& object, std::vector<std::string_view> args_in) {
+  auto [program_name, parsed_args, parsed_opts] = _cli_impl::parse<std::remove_cvref_t<T>>(args_in);
+
+  ProgramInfo::set_name(program_name);
+  _cli_impl::apply_args(object, parsed_args);
+  _cli_impl::apply_options(object, parsed_opts);
+}
+
+template <typename T>
+T load_config(std::vector<std::string_view> args_in) {
+  auto [program_name, parsed_args, parsed_opts] = _cli_impl::parse<T>(args_in);
+
+  ProgramInfo::set_name(program_name);
+  T object = _cli_impl::construct_from_args<T>(parsed_args);
+  _cli_impl::apply_options(object, parsed_opts);
 
   return object;
 }

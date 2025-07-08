@@ -207,14 +207,13 @@ std::string Value::as_string() const {
 }
 
 Value load(std::string_view path) {
-  auto config_path = std::filesystem::path(path);
+  auto config_path = absolute(std::filesystem::path(path));
   if (!exists(config_path)) {
     throw std::runtime_error(std::format("File {} does not exist.", path));
   }
   auto in = std::ifstream(config_path);
   std::stringstream buffer;
   buffer << in.rdbuf();
-
   return Value(buffer.str());
 }
 

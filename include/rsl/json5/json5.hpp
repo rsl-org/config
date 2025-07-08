@@ -42,11 +42,15 @@ struct Value {
   template <typename T>
   void update_argtuple(_impl::ArgumentTuple<T>& args) const {
     Object obj = as_object();
-    constexpr_assert(obj.size() != 0);
+    if (obj.empty()) {
+      return;
+    }
+
     constexpr auto ctx     = std::meta::access_context::current();
     constexpr auto members = std::define_static_array(nonstatic_data_members_of(dealias(^^T), ctx));
     constexpr auto base_count = bases_of(dealias(^^T), ctx).size();
-    template for (constexpr auto Idx : std::views::iota(0zu, members.size())) {
+    
+    template for (constexpr auto Idx : std::views::iota(0ZU, members.size())) {
       constexpr auto name = std::define_static_string(identifier_of(members[Idx]));
       auto it             = obj.find(name);
       if (it != obj.end()) {

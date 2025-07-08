@@ -1,0 +1,7 @@
+{
+  "text": "test",
+  "foo": {
+    "from_config": true,
+    "bar": 3
+  }
+}

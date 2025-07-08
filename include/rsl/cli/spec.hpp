@@ -187,27 +187,15 @@ struct Spec {
     // parser.parse_base(type);
     parser.validate();
     std::vector<rsl::span<Argument const>> meta_bases;
-    for (auto base : parser.bases) {
-      meta_bases.push_back(rsl::span(define_static_array(base)));
+    meta_bases.reserve(parser.bases.size());
+    for (auto const& base : parser.bases) {
+      meta_bases.emplace_back(define_static_array(base));
     }
 
     bases     = define_static_array(meta_bases);
     arguments = define_static_array(parser.arguments);
     commands  = define_static_array(parser.commands);
     options   = define_static_array(parser.options);
-  }
-
-  std::vector<Argument::Unevaluated> parse_arguments(ArgParser& parser) const {
-    std::vector<Argument::Unevaluated> parsed_args;
-    for (auto arg : arguments) {
-      auto argument = arg.parse(parser);
-      if (!argument) {
-        // failed to parse argument - bail out
-        return parsed_args;
-      }
-      parsed_args.push_back(*argument);
-    }
-    return parsed_args;
   }
 
   bool parse_as_command(ArgParser& parser) const {
@@ -228,6 +216,23 @@ struct Spec {
     }
 
     return {};
+  }
+
+  std::vector<Argument::Unevaluated> parse_arguments(ArgParser& parser) const {
+    std::vector<Argument::Unevaluated> parsed_args;
+    for (auto arg : arguments) {
+      auto argument = arg.parse(parser);
+      if (!argument) {
+        if (!arg.is_optional) {
+          std::println("Missing required argument {}", arg.name);
+          std::exit(1);
+        }
+        // failed to parse argument - bail out
+        return parsed_args;
+      }
+      parsed_args.push_back(*argument);
+    }
+    return parsed_args;
   }
 
   std::vector<Option::Unevaluated> parse_options(ArgParser& parser) const {

@@ -4,6 +4,7 @@
 #include <concepts>
 #include <ranges>
 #include <algorithm>
+#include <rsl/constexpr_assert>
 #include <tuple>  // use rsl::tuple?
 #include <utility>
 #include <stdexcept>
@@ -35,8 +36,10 @@ consteval std::meta::info make_arg_tuple() {
     for (auto&& arg : nonstatic_data_members_of(R, ctx)) {
       args.push_back(make_optional(type_of(arg)));
     }
+  } else if constexpr (is_scalar_type(R)) {
+    args.push_back(make_optional(R));
   } else {
-    throw "unsupported reflection type";
+    rsl::compile_error(std::string("unsupported reflection type ") + display_string_of(R));
   }
 
   return substitute(^^std::tuple, args);
@@ -126,6 +129,16 @@ T default_construct(ArgumentTuple<T> const& args) {
       },
       args,
       std::make_index_sequence<num_bases>());
+}
+
+template <typename T>
+  requires(std::is_scalar_v<T>)
+T default_construct(ArgumentTuple<T> const& args) {
+  if (auto value = get<0>(args); value) {
+    return T{value};
+  } else {
+    return T{};
+  }
 }
 
 template <std::meta::info R>
