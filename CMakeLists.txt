@@ -43,7 +43,7 @@ if (BUILD_TESTING)
   target_link_libraries(rsl_config_test PRIVATE rsl_config)
   
   add_subdirectory(test)
-  target_compile_definitions(rsl_config_test PRIVATE RSL_TEST_NAMESPACE=rsl::_test)
+  target_compile_definitions(rsl_config_test PRIVATE RSL_TEST_NAMESPACE=rsl)
   
   find_package(rsl-test REQUIRED)
   target_link_libraries(rsl_config_test PRIVATE rsl::test rsl::test_main)
