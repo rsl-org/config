@@ -32,105 +32,115 @@ public:
   static std::string_view name() { return get_name(); }
 };
 
-class config {
-  static void print_help(_cli_impl::Spec const& spec,
-                         std::string_view program_name,
-                         std::string_view description);
-
-public:
-  static constexpr auto option = annotations::option;
-  static constexpr auto value  = rsl::placeholders::_0;
-
-  using shorthand   = annotations::Shorthand;
-  using description = annotations::Description;
-
-  template <typename T>
-  [[= option]] [[noreturn]]
-  static void help() {
-    constexpr static _cli_impl::Spec spec{remove_cvref(^^T)};
-    auto program_name = ProgramInfo::name();
-    auto description  = std::string_view{};
-    if (auto desc = annotation_of_type<annotations::Description>(^^T); desc) {
-      description = desc->data;
-    }
-    print_help(spec, program_name, description);
-    std::exit(0);
-  }
-};
-
-class cli : public config {
-  static std::string& get_config_path();
-
-public:
-  static constexpr auto option     = annotations::option;
-  static constexpr auto positional = annotations::positional;
-  static constexpr auto value      = rsl::placeholders::_0;
-
-  using shorthand   = annotations::Shorthand;
-  using description = annotations::Description;
-
-  template <typename T>
-  void parse_args(int argc, char** argv) {}
-
-  static std::string_view config_path() { return get_config_path(); }
-
-  template <typename T>
-  [[= option]] static void config_path(std::string new_path) {
-    get_config_path() = std::move(new_path);
-  }
-
-  template <typename T>
-  [[= option]] [[noreturn]]
-  static void help() {
-    config::template help<T>();
-  }
-};
+class config;
 
 namespace _cli_impl {
 struct ParsedArgs {
+  Spec spec;
   std::string_view program_name;
   std::vector<Argument::Unevaluated> arguments;
   std::vector<Option::Unevaluated> options;
+
+  constexpr ParsedArgs(Spec const& spec, std::span<std::string_view> args_in) 
+  : spec(spec) 
+  {
+    auto parser          = ArgParser{args_in};
+    auto& [args, cursor, error] = parser;
+
+    auto program_name = args_in[0];
+    cursor            = 1;
+
+    std::string argument_error;
+    if (!parse_arguments(parser) && parser.has_error()) {
+      // reset parser error state, get its error
+      std::swap(argument_error, error);
+    }
+
+    // even if parsing arguments fail, try options - some might be commands that we can execute anyway
+    if (!parse_options(parser) && parser.has_error()) {
+      std::println("{}", error);
+      std::exit(1);
+    }
+
+    // finally, report argument parsing errors
+    if (!argument_error.empty()){
+      std::println("{}", argument_error);
+      std::exit(1);
+    } 
+  }
+
+  bool parse_as_command(ArgParser& parser) const {
+    for (auto cmd : spec.commands) {
+      if (auto unevaluated = cmd.parse(parser); unevaluated) {
+        (*unevaluated)(nullptr);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  std::optional<Option::Unevaluated> parse_as_option(ArgParser& parser) {
+    for (auto opt : spec.options) {
+      if (auto unevaluated = opt.parse(parser); unevaluated) {
+        return unevaluated;
+      }
+    }
+
+    return {};
+  }
+
+  bool parse_arguments(ArgParser& parser) {
+    for (auto arg : spec.arguments) {
+      auto argument = arg.parse(parser);
+      if (!argument) {
+        if (!arg.is_optional) {
+          parser.set_error("Missing required argument {}", arg.name);
+          return false;
+        }
+        // failed to parse argument - bail out
+        return true;
+      }
+      arguments.push_back(*argument);
+    }
+    return true;
+  }
+
+  bool parse_options(ArgParser& parser) {
+    while (parser.valid()) {
+      if (parse_as_command(parser)) {
+        continue;
+      }
+
+      auto unevaluated = parse_as_option(parser);
+      if (!unevaluated) {
+        parser.set_error("Could not find option `{}`", parser.current());
+        return false;
+      }
+      options.push_back(*unevaluated);
+    }
+    return true;
+  }
 };
 
 template <typename T>
 ParsedArgs parse(std::span<std::string_view> args_in) {
   static constexpr _cli_impl::Spec spec{^^T};
-  auto parser          = ArgParser{args_in};
-  auto& [args, cursor] = parser;
-
-  auto program_name = args_in[0];
-  cursor            = 1;
-
-  auto arguments = spec.parse_arguments(parser);
-  auto options   = spec.parse_options(parser);
-  return {program_name, std::move(arguments), std::move(options)};
+  return {spec, args_in};
 }
 
 template <typename T>
 _impl::ArgumentTuple<T> tuple_from_args(std::span<Argument::Unevaluated> args) {
   _impl::ArgumentTuple<T> args_tuple;
 
-  auto config = json5::load(T::config_path());
-  config.template update_argtuple<T>(args_tuple);
+  if constexpr (std::derived_from<T, config>) {
+    // only load config if T is configurable
+    auto config = json5::load(T::get_config_path());
+    config.template update_argtuple<T>(args_tuple);
+  }
 
   for (auto argument : args) {
     argument(&args_tuple);
   }
-
-  // constexpr auto ctx            = std::meta::access_context::current();
-  // constexpr static auto members = std::define_static_array(nonstatic_data_members_of(^^T, ctx));
-  // constexpr auto base_count     = bases_of(^^T, ctx).size();
-
-  // template for (constexpr auto Idx : std::views::iota(0zu, members.size())) {
-  //   constexpr static bool has_default = has_default_member_initializer(members[Idx]);
-  //   constexpr static auto name        = std::define_static_string(identifier_of(members[Idx]));
-
-  //   if (!get<base_count + Idx>(args_tuple).has_value() && !has_default) {
-  //     std::println("Missing required argument `{}`", name);
-  //     std::exit(1);
-  //   }
-  // }
   return args_tuple;
 }
 
@@ -167,20 +177,25 @@ void apply_options(T&& object, std::span<Option::Unevaluated> options) {
 
 template <typename T>
 void parse_args(T&& object, std::vector<std::string_view> args_in) {
-  auto [program_name, parsed_args, parsed_opts] = _cli_impl::parse<std::remove_cvref_t<T>>(args_in);
+  auto args = _cli_impl::parse<std::remove_cvref_t<T>>(args_in);
 
-  ProgramInfo::set_name(program_name);
-  _cli_impl::apply_args(object, parsed_args);
-  _cli_impl::apply_options(object, parsed_opts);
+  ProgramInfo::set_name(args.program_name);
+  _cli_impl::apply_args(object, args.arguments);
+  _cli_impl::apply_options(object, args.options);
+}
+
+template <typename T>
+void parse_args(T&& object, int argc, char** argv) {
+  return parse_args(std::forward<T>(object), {argv, argv + argc});
 }
 
 template <typename T>
 T load_config(std::vector<std::string_view> args_in) {
-  auto [program_name, parsed_args, parsed_opts] = _cli_impl::parse<T>(args_in);
+  auto args = _cli_impl::parse<T>(args_in);
 
-  ProgramInfo::set_name(program_name);
-  T object = _cli_impl::construct_from_args<T>(parsed_args);
-  _cli_impl::apply_options(object, parsed_opts);
+  ProgramInfo::set_name(args.program_name);
+  T object = _cli_impl::construct_from_args<T>(args.arguments);
+  _cli_impl::apply_options(object, args.options);
 
   return object;
 }
@@ -189,5 +204,61 @@ template <typename T>
 T load_config(int argc, char** argv) {
   return load_config<T>({argv, argv + argc});
 }
+
+namespace _cli_impl {
+void print_help(_cli_impl::Spec const& spec,
+                std::string_view program_name,
+                std::string_view description);
+
+template <typename T>
+[[noreturn]]
+void default_help() {
+  constexpr static _cli_impl::Spec spec{remove_cvref(^^T)};
+  auto program_name = ProgramInfo::name();
+  auto description  = std::string_view{};
+  if (auto desc = annotation_of_type<annotations::Description>(^^T); desc) {
+    description = desc->data;
+  }
+  print_help(spec, program_name, description);
+  std::exit(0);
+}
+}  // namespace _cli_impl
+
+struct config {
+  static std::string& get_config_path();
+
+  template <typename T>
+  [[= annotations::option]] [[noreturn]]
+  static void help() {
+    _cli_impl::default_help<T>();
+  }
+};
+
+class cli {
+public:
+  static constexpr auto option     = annotations::option;
+  static constexpr auto positional = annotations::positional;
+  static constexpr auto value      = rsl::placeholders::_0;
+
+  using shorthand   = annotations::Shorthand;
+  using description = annotations::Description;
+
+  template <typename T>
+  void parse_args(this T&& self, int argc, char** argv) {
+    return rsl::parse_args(std::forward<T>(self), {argv, argv + argc});
+  }
+
+  template <typename T>
+    requires(std::derived_from<T, config>)
+  [[= option]] static void config_path(std::string new_path) {
+    T::get_config_path() = std::move(new_path);
+  }
+
+  template <typename T>
+  [[= option]] [[noreturn]]
+  static void help() {
+    _cli_impl::default_help<T>();
+  }
+};
 
 }  // namespace rsl

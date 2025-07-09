@@ -101,7 +101,7 @@ struct Spec {
         }
         for (auto command : subparser.commands) {
           command.name = std::define_static_string(std::string(name) + ':' + command.name);
-          options.push_back(command);
+          commands.push_back(command);
         }
       }
       return false;
@@ -196,59 +196,6 @@ struct Spec {
     arguments = define_static_array(parser.arguments);
     commands  = define_static_array(parser.commands);
     options   = define_static_array(parser.options);
-  }
-
-  bool parse_as_command(ArgParser& parser) const {
-    for (auto cmd : commands) {
-      if (auto unevaluated = cmd.parse(parser); unevaluated) {
-        (*unevaluated)(nullptr);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  std::optional<Option::Unevaluated> parse_as_option(ArgParser& parser) const {
-    for (auto opt : options) {
-      if (auto unevaluated = opt.parse(parser); unevaluated) {
-        return unevaluated;
-      }
-    }
-
-    return {};
-  }
-
-  std::vector<Argument::Unevaluated> parse_arguments(ArgParser& parser) const {
-    std::vector<Argument::Unevaluated> parsed_args;
-    for (auto arg : arguments) {
-      auto argument = arg.parse(parser);
-      if (!argument) {
-        if (!arg.is_optional) {
-          std::println("Missing required argument {}", arg.name);
-          std::exit(1);
-        }
-        // failed to parse argument - bail out
-        return parsed_args;
-      }
-      parsed_args.push_back(*argument);
-    }
-    return parsed_args;
-  }
-
-  std::vector<Option::Unevaluated> parse_options(ArgParser& parser) const {
-    std::vector<Option::Unevaluated> parsed_opts{};
-    while (parser.valid()) {
-      if (parse_as_command(parser)) {
-        continue;
-      }
-
-      auto unevaluated = parse_as_option(parser);
-      if (!unevaluated) {
-        parser.fail("Could not find option `{}`", parser.current());
-      }
-      parsed_opts.push_back(*unevaluated);
-    }
-    return parsed_opts;
   }
 };
 }  // namespace rsl::_cli_impl

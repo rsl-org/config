@@ -11,16 +11,16 @@ namespace rsl::_cli_impl {
 struct ArgParser {
   std::span<std::string_view> args;
   std::size_t cursor = 0;
+  std::string error;
 
   std::string_view current() const { return args[cursor]; }
 
   template <typename... Args>
-  [[noreturn]] void fail(std::format_string<Args...> fmt, Args&&... args) const {
-    std::println(fmt, std::forward<Args>(args)...);
-    std::exit(1);
+  void set_error(std::format_string<Args...> fmt, Args&&... args) {
+    error = std::format(fmt, std::forward<Args>(args)...);
   }
-
-  [[nodiscard]] bool valid() const noexcept { return cursor < args.size(); }
+  [[nodiscard]] bool has_error() const { return !error.empty(); }
+  [[nodiscard]] bool valid() const { return cursor < args.size() && !has_error(); }
 };
 
 template <typename T>

@@ -19,6 +19,7 @@ struct Arguments : rsl::cli {
 
 int main(int argc, char** argv) {
   auto args = Arguments(123);
-  rsl::parse_args(args, {argv, argv+argc});
+  args.parse_args(argc, argv);
+
   std::println("{}", args.durations);
 }

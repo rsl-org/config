@@ -123,7 +123,7 @@ struct Option {
         option.parameters.push_back(*parameter);
       } else {
         if (!arg.is_optional) {
-          parser.fail("Missing parameter {} of option {}", arg.name, name);
+          parser.set_error("Missing parameter {} of option {}", arg.name, name);
           break;
         }
       }

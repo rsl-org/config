@@ -3,14 +3,14 @@
 #include <rsl/config>
 
 namespace rsl {
-std::string& cli::get_config_path() {
-  static std::string config_path{ std::filesystem::current_path() / "settings.json5" };
+std::string& config::get_config_path() {
+  static std::string config_path{std::filesystem::current_path() / "settings.json5"};
   return config_path;
 }
 
-void config::print_help(_cli_impl::Spec const& spec,
-                     std::string_view program_name,
-                     std::string_view description) {
+void _cli_impl::print_help(_cli_impl::Spec const& spec,
+                           std::string_view program_name,
+                           std::string_view description) {
   std::string arguments{};
   for (auto argument : spec.arguments) {
     if (argument.is_optional) {
@@ -58,12 +58,7 @@ void config::print_help(_cli_impl::Spec const& spec,
         if (argument.is_optional) {
           optional = " (optional)";
         }
-        std::println("{:<{}}{} -> {}{}",
-                     "",
-                     offset,
-                     argument.name,
-                     argument.type,
-                     optional);
+        std::println("{:<{}}{} -> {}{}", "", offset, argument.name, argument.type, optional);
       }
     }
   };
