@@ -18,6 +18,20 @@ struct Arguments : rsl::cli {
 };
 
 int main(int argc, char** argv) {
+    static constexpr rsl::_cli_impl::Spec spec{^^Arguments};
+  std::println("bases: {}, arguments: {}, options: {}",
+               spec.bases.size(),
+               spec.arguments.size(),
+               spec.options.size());
+  for (auto const& arg : spec.arguments) {
+    std::println("arg: {}", arg.name);
+  }
+
+  for (auto const& opt : spec.options) {
+    std::println("opt: {}", opt.name);
+  }
+
+
   auto args = Arguments(123);
   args.parse_args(argc, argv);
 

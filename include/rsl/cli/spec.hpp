@@ -58,7 +58,7 @@ struct Spec {
     }
 
     consteval void parse_base(std::meta::info self, std::meta::info r) {
-      if (extract<bool>(substitute(^^std::convertible_to, {type_of(r), ^^config}))) {
+      if (meta::convertible_to(type_of(r), ^^config) || meta::convertible_to(type_of(r), ^^cli)) {
         // special case built-in bases. These need to access the child type
 
         for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
@@ -71,8 +71,8 @@ struct Spec {
             options.emplace_back(identifier_of(fnc_template), fnc);
           }
         }
-        bases.push_back({});
       }
+      bases.emplace_back();
       // TODO positional argument handling
     }
 
@@ -168,7 +168,6 @@ struct Spec {
     auto type   = is_type(r) ? r : type_of(r);
     auto parser = Parser();
     parser.parse(type);
-    // parser.parse_base(type);
     parser.validate();
     std::vector<rsl::span<Argument const>> meta_bases;
     meta_bases.reserve(parser.bases.size());

@@ -3,6 +3,9 @@
 #include <cstddef>
 #include <span>
 #include <format>
+#include <algorithm>
+#include <cctype>
+
 #include <rsl/util/to_string.hpp>
 
 #include <rsl/json5/serializer.hpp>
@@ -27,6 +30,20 @@ template <typename T>
 T parse_value(std::string_view value) {
   if constexpr (std::same_as<T, std::string>) {
     return std::string(value);
+  } else if constexpr (std::same_as<T, bool>) {
+    // allow a few more ways to spell true/false
+    // TODO move out of header
+    std::string lower_value;
+    std::ranges::transform(value, lower_value.begin(), [](char c) {return std::tolower(c); });
+    if (lower_value == "1" || lower_value == "y" || lower_value == "yes" || lower_value == "on" ||
+        lower_value == "true") {
+      return true;
+    } else if (lower_value == "0" || lower_value == "n" || lower_value == "no" ||
+               lower_value == "off" || lower_value == "false") {
+      return false;
+    } else {
+      throw std::runtime_error("could not parse as bool");
+    }
   } else {
     return json5::Serializer<T>::deserialize(json5::Value{std::string(value)});
   }
