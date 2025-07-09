@@ -51,5 +51,6 @@
 .pytest_cache
 
 .devcontainer
+lib
 
 settings.json5

@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
-
+import os
 
 class rslconfigRecipe(ConanFile):
     name = "rsl-config"
@@ -19,15 +19,13 @@ class rslconfigRecipe(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
-        "coverage": [True, False],
         "examples": [True, False],
-        "tests": [True, False]
+        "editable": [True, False]
     }
-    default_options = {"shared": False, "fPIC": True,
-                       "coverage": False, "examples": False, "tests": False}
+    default_options = {"shared": False, "fPIC": True, "examples": False, "editable": False}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "src/*", "include/*", "test/*"
+    exports_sources = "CMakeLists.txt", "src/*", "include/*"
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -56,6 +54,9 @@ class rslconfigRecipe(ConanFile):
                 "BUILD_EXAMPLES": self.options.examples,
             })
         cmake.build()
+        if self.options.editable:
+            # package is in editable mode - make sure it's installed after building
+            cmake.install()
 
     def package(self):
         cmake = CMake(self)
