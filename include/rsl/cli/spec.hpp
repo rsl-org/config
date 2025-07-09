@@ -58,7 +58,7 @@ struct Spec {
     }
 
     consteval void parse_base(std::meta::info self, std::meta::info r) {
-      if (meta::convertible_to(type_of(r), ^^config) || meta::convertible_to(type_of(r), ^^cli)) {
+      if (is_convertible_type(type_of(r), ^^config) || is_convertible_type(type_of(r), ^^cli)) {
         // special case built-in bases. These need to access the child type
 
         for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
