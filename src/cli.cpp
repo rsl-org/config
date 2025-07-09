@@ -36,7 +36,7 @@ void _cli_impl::print_help(_cli_impl::Spec const& spec,
   auto safe_max    = [&](std::span<_cli_impl::Option const> const& opts) {
     return opts.empty() ? 0 : std::ranges::max(opts | std::views::transform(name_length));
   };
-  std::size_t max_name_length = std::max(safe_max(spec.commands), safe_max(spec.options));
+  std::size_t max_name_length = safe_max(spec.options);
 
   auto print_option = [&](_cli_impl::Option opt) {
     std::string params;
@@ -62,10 +62,6 @@ void _cli_impl::print_help(_cli_impl::Spec const& spec,
       }
     }
   };
-
-  for (auto command : spec.commands) {
-    print_option(command);
-  }
 
   for (auto opt : spec.options) {
     print_option(opt);

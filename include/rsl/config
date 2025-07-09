@@ -69,26 +69,6 @@ struct ParsedArgs {
     } 
   }
 
-  bool parse_as_command(ArgParser& parser) const {
-    for (auto cmd : spec.commands) {
-      if (auto unevaluated = cmd.parse(parser); unevaluated) {
-        (*unevaluated)(nullptr);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  std::optional<Option::Unevaluated> parse_as_option(ArgParser& parser) {
-    for (auto opt : spec.options) {
-      if (auto unevaluated = opt.parse(parser); unevaluated) {
-        return unevaluated;
-      }
-    }
-
-    return {};
-  }
-
   bool parse_arguments(ArgParser& parser) {
     for (auto arg : spec.arguments) {
       auto argument = arg.parse(parser);
@@ -107,16 +87,39 @@ struct ParsedArgs {
 
   bool parse_options(ArgParser& parser) {
     while (parser.valid()) {
-      if (parse_as_command(parser)) {
-        continue;
+      auto current = parser.current();
+
+      if (!current.starts_with('-')) {
+        parser.set_error("Expected an option.");
+        return false;
+      } else {
+        current.remove_prefix(1);
       }
 
-      auto unevaluated = parse_as_option(parser);
-      if (!unevaluated) {
+      if (current.starts_with('-')) {
+        // long option
+        current.remove_prefix(1);
+
+      } else {
+        // short option
+      }
+
+      bool found = false;
+      for (auto opt : spec.options) {
+        if (auto unevaluated = opt.parse(parser); unevaluated) {
+          if (opt.run_early) {
+            (*unevaluated)(nullptr);
+          } else {
+            options.push_back(*unevaluated);
+          }
+          found = true;
+        }
+      }
+      if (!found) {
         parser.set_error("Could not find option `{}`", parser.current());
         return false;
       }
-      options.push_back(*unevaluated);
+      
     }
     return true;
   }

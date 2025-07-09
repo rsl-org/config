@@ -21,18 +21,17 @@ namespace rsl::_cli_impl {
 
 struct Spec {
   class Parser {
-    // options and commands from bases are directly folded into this spec
+    // only stores arguments => options from bases are directly folded into this spec
     std::vector<std::vector<Argument>> bases;
 
     // arguments are positional options required to construct the settings container
     std::vector<Argument> arguments;
-    // - or -- prefixed options, can be non-static member functions
+    // - or -- prefixed options, can be member functions or data members
     std::vector<Option> options;
-    // options that are executed before constructing an object of the wrapped type
-    std::vector<Option> commands;
 
     // subcommands change parser context, they do not need `--` prefix
     // but cannot be used in combination with variadic or optional arguments
+    // TODO implement
     std::vector<Spec> subcommands;
 
     bool allow_positional;
@@ -51,7 +50,7 @@ struct Spec {
           continue;
         }
 
-        (void)(parse_argument(nsdm_idx, member) || parse_command(member) || parse_option(member));
+        (void)(parse_argument(nsdm_idx, member) || parse_option(member));
         if (is_nonstatic_data_member(member)) {
           ++nsdm_idx;
         }
@@ -69,11 +68,12 @@ struct Spec {
 
           auto fnc = substitute(fnc_template, {self});
           if (meta::has_annotation<annotations::Option>(fnc)) {
-            commands.emplace_back(identifier_of(fnc_template), fnc);
+            options.emplace_back(identifier_of(fnc_template), fnc);
           }
         }
         bases.push_back({});
       }
+      // TODO positional argument handling
     }
 
     consteval bool parse_argument(std::size_t idx, std::meta::info r) {
@@ -99,22 +99,7 @@ struct Spec {
           option.name = std::define_static_string(std::string(name) + ':' + option.name);
           options.push_back(option);
         }
-        for (auto command : subparser.commands) {
-          command.name = std::define_static_string(std::string(name) + ':' + command.name);
-          commands.push_back(command);
-        }
       }
-      return false;
-    }
-
-    consteval bool parse_command(std::meta::info r) {
-      if (is_function(r) && is_static_member(r)) {
-        if (meta::has_annotation(r, ^^annotations::Option)) {
-          commands.emplace_back(identifier_of(r), r);
-          return true;
-        }
-      }
-
       return false;
     }
 
@@ -128,7 +113,7 @@ struct Spec {
           rsl::compile_error(std::string("Option ") + identifier_of(r) +
                              " lacks a default member initializer.");
         }
-      } else if (!is_function(r) || is_static_member(r)) {
+      } else if (!is_function(r)) {
         return false;
       }
 
@@ -177,7 +162,6 @@ struct Spec {
   rsl::string_view name;
   rsl::span<rsl::span<Argument const> const> bases;
   rsl::span<Argument const> arguments;
-  rsl::span<Option const> commands;
   rsl::span<Option const> options;
 
   consteval explicit Spec(std::meta::info r) : name(identifier_of(r)) {
@@ -194,7 +178,6 @@ struct Spec {
 
     bases     = define_static_array(meta_bases);
     arguments = define_static_array(parser.arguments);
-    commands  = define_static_array(parser.commands);
     options   = define_static_array(parser.options);
   }
 };

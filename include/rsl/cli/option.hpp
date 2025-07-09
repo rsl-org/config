@@ -103,6 +103,7 @@ struct Option {
   rsl::string_view name;
   rsl::string_view description;
   rsl::span<Parameter const> parameters;
+  bool run_early = false;
 
   std::optional<Unevaluated> parse(ArgParser& parser) {
     auto opt_name = parser.current();
@@ -133,7 +134,8 @@ struct Option {
   }
 
   consteval Option(std::string_view name, std::meta::info reflection)
-      : name(std::define_static_string(name)) {
+      : name(std::define_static_string(name))
+      , run_early(is_static_member(reflection)) {
     if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
       description = std::define_static_string(desc->data);
     }
