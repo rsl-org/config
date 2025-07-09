@@ -32,32 +32,7 @@ add_subdirectory(src)
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include)
 install(TARGETS rsl_config)
 
-option(BUILD_TESTING "Enable tests" ON)
-option(ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
 option(BUILD_EXAMPLES "Enable examples" ON)
-
-if (BUILD_TESTING)
-  message(STATUS "Building unit tests")
-
-  add_executable(rsl_config_test)
-  target_link_libraries(rsl_config_test PRIVATE rsl_config)
-  
-  add_subdirectory(test)
-  target_compile_definitions(rsl_config_test PRIVATE RSL_TEST_NAMESPACE=rsl)
-  
-  find_package(rsl-test REQUIRED)
-  target_link_libraries(rsl_config_test PRIVATE rsl::test rsl::test_main)
-  
-  enable_testing()
-  add_test(NAME rsl_config_test COMMAND rsl_config_test)
-
-  if(ENABLE_COVERAGE)
-    message(STATUS "Instrumenting for coverage")  
-
-    target_compile_options(rsl_config PRIVATE -g -O0 --coverage)
-    target_link_libraries(rsl_config PRIVATE --coverage)
-  endif()
-endif()
 
 if (BUILD_EXAMPLES)
   add_subdirectory(example)

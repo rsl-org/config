@@ -20,13 +20,14 @@ class rslconfigRecipe(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "coverage": [True, False],
-        "examples": [True, False]
+        "examples": [True, False],
+        "tests": [True, False]
     }
     default_options = {"shared": False, "fPIC": True,
-                       "coverage": False, "examples": False}
+                       "coverage": False, "examples": False, "tests": False}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "src/*", "include/*"
+    exports_sources = "CMakeLists.txt", "src/*", "include/*", "test/*"
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -37,9 +38,7 @@ class rslconfigRecipe(ConanFile):
             self.options.rm_safe("fPIC")
 
     def requirements(self):
-        self.requires("rsl-util/0.1")
-        if not self.conf.get("tools.build:skip_test", default=False):
-            self.test_requires("rsl-test/0.1")
+        self.requires("rsl-util/0.1", transitive_headers=True)
 
     def layout(self):
         cmake_layout(self)
@@ -54,9 +53,7 @@ class rslconfigRecipe(ConanFile):
         cmake = CMake(self)
         cmake.configure(
             variables={
-                "ENABLE_COVERAGE": self.options.coverage,
                 "BUILD_EXAMPLES": self.options.examples,
-                "BUILD_TESTING": not self.conf.get("tools.build:skip_test", default=False)
             })
         cmake.build()
 
@@ -65,7 +62,9 @@ class rslconfigRecipe(ConanFile):
         cmake.install()
 
     def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "rsl-config")
         self.cpp_info.components["config"].set_property("cmake_target_name", "rsl::config")
         self.cpp_info.components["config"].includedirs = ["include"]
         self.cpp_info.components["config"].libdirs = ["lib"]
         self.cpp_info.components["config"].libs = ["rsl_config"]
+        self.cpp_info.components["config"].requires = ["rsl-util::util"]

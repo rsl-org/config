@@ -11,6 +11,7 @@ class pkgTestConan(ConanFile):
 
     def requirements(self):
         self.requires(self.tested_reference_str)
+        self.requires("rsl-test/0.1")
 
     def build(self):
         cmake = CMake(self)
@@ -22,5 +23,5 @@ class pkgTestConan(ConanFile):
 
     def test(self):
         if can_run(self):
-            cmd = os.path.join(self.cpp.build.bindir, "example")
+            cmd = os.path.join(self.cpp.build.bindir, "rsl_config_test")
             self.run(cmd, env="conanrun")

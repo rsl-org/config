@@ -1,12 +1,15 @@
-#include "mypkg.h"
-#include <vector>
+#include <rsl/config>
 #include <string>
 
-int main() {
-  pkg();
+struct Args : rsl::cli {
+  int times;
+  [[= positional]] std::string text = "foo";
+};
 
-  std::vector<std::string> vec;
-  vec.push_back("test_package");
-
-  pkg_print_vector(vec);
+int main(int argc, char** argv) {
+  auto args = Args{.times = 3};
+  args.parse_args(argc, argv);
+  for (int i = 0; i < args.times; ++i) {
+    std::println("{}", args.text);
+  }
 }
