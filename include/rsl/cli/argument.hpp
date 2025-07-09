@@ -12,6 +12,7 @@
 #include "parser.hpp"
 #include "annotations.hpp"
 #include <rsl/_impl/default_construct.hpp>
+#include <rsl/_impl/prettify.hpp>
 
 namespace rsl::_cli_impl {
 
@@ -98,8 +99,7 @@ struct Argument {
   consteval Argument(std::size_t idx, std::meta::info reflection)
       : index(idx)
       , name(std::define_static_string(identifier_of(reflection)))
-      , type(std::define_static_string(
-            display_string_of(type_of(reflection))))  // TODO clean at this point?
+      , type(std::define_static_string(pretty_type(reflection)))
       , is_optional(is_function_parameter(reflection)
                         ? has_default_argument(reflection)
                         : has_default_member_initializer(reflection)) {
