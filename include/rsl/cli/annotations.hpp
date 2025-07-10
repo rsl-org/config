@@ -9,6 +9,7 @@
 namespace rsl::annotations {
 constexpr inline struct Option {} option {};
 constexpr inline struct Positional {} positional {};
+constexpr inline struct Flag {} flag {};
 
 namespace _impl {
 struct StringAnnotation {

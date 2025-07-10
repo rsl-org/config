@@ -1,5 +1,6 @@
 #pragma once
 #include <meta>
+#include <rsl/meta_traits>
 #include <vector>
 #include <string_view>
 #include <optional>
@@ -30,7 +31,7 @@ struct Parameter {
       using parent               = [:Parent == std::meta::info{} ? type : type_of(Parent):];
       using arg_tuple            = _impl::ArgumentTuple<parent>;
 
-      auto value = parse_value<typename[:type:]>(argument);
+      auto value                                    = parse_value<typename[:type:]>(argument);
       get<Idx>(*static_cast<arg_tuple*>(arguments)) = value;
     }
   };
@@ -91,7 +92,8 @@ struct Option {
       } else if constexpr (is_function(R)) {
         _impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
-        static_cast<[:parent_of(R):]*>(obj) -> [:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
+        static_cast<[:parent_of(R):]*>(
+            obj) -> [:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
       } else {
         static_assert(false, "Unsupported handler type.");
       }
@@ -103,6 +105,7 @@ struct Option {
   rsl::string_view description;
   rsl::span<Parameter const> parameters;
   bool run_early = false;
+  bool is_flag   = false;
 
   std::optional<Unevaluated> parse(ArgParser& parser) {
     auto opt_name = parser.current();
@@ -117,11 +120,17 @@ struct Option {
     ++parser.cursor;  // parser will not unwind after this point
 
     Unevaluated option{.handle = _impl_handler};
+
     for (auto arg : parameters) {
       auto parameter = arg.parse(parser);
-      if (parameter) {
+      if (parameter.has_value()) {
         option.parameters.push_back(*parameter);
       } else {
+        if (is_flag && parameters.size() == 1) {
+          // insert a fake "true" for flags
+          option.parameters.emplace_back(arg._impl_handler, "true");
+          break;
+        }
         if (!arg.is_optional) {
           parser.set_error("Missing parameter {} of option {}", arg.name, name);
           break;
@@ -132,17 +141,28 @@ struct Option {
     return option;
   }
 
-  consteval Option(std::string_view name, std::meta::info reflection)
-      : name(std::define_static_string(name))
-      , run_early(is_static_member(reflection)) {
+  consteval Option(std::string_view name_in, std::meta::info reflection)
+      : run_early(is_static_member(reflection)) {
+    //? make optional? do outside of constant evaluation?
+    std::string raw_name = std::string(name_in);
+    std::ranges::transform(raw_name, raw_name.begin(), [](char c) { return c == '_' ? '-' : c; });
+    name = std::define_static_string(raw_name);
+
     if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
       description = std::define_static_string(desc->data);
+    }
+
+    if (meta::has_annotation<annotations::Flag>(reflection)) {
+      is_flag = true;
     }
 
     std::vector<Parameter> args;
     std::size_t index = 0;
     if (is_object_type(type_of(reflection))) {
-      args.emplace_back(index, reflection, std::meta::info{});
+      auto parameter = Parameter(index, reflection, std::meta::info{});
+      // this is an object parameter, we need a value unless it's a flag
+      parameter.is_optional = false;
+      args.push_back(parameter);
     } else {
       for (auto param : parameters_of(reflection)) {
         args.emplace_back(index++, param, reflection);

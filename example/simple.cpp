@@ -10,10 +10,12 @@ struct Test : rsl::config {
 
 struct Arguments
     : rsl::cli
-    , rsl::config {
+    // , rsl::config
+     {
   [[= positional]] std::string text;
-  Test foo;
+  // Test foo;
   [[= positional]] char times = 5;
+  [[=option, =flag]] bool baz = false;
 
   [[= option]] void test(char x) { std::println("text: {}, times: {}, x: {}", text, times, x); }
 

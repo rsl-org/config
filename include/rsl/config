@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <print>
 #include <ranges>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <string>
@@ -41,10 +42,8 @@ struct ParsedArgs {
   std::vector<Argument::Unevaluated> arguments;
   std::vector<Option::Unevaluated> options;
 
-  constexpr ParsedArgs(Spec const& spec, std::span<std::string_view> args_in) 
-  : spec(spec) 
-  {
-    auto parser          = ArgParser{args_in};
+  constexpr ParsedArgs(Spec const& spec, std::span<std::string_view> args_in) : spec(spec) {
+    auto parser                 = ArgParser{args_in};
     auto& [args, cursor, error] = parser;
 
     auto program_name = args_in[0];
@@ -56,17 +55,18 @@ struct ParsedArgs {
       std::swap(argument_error, error);
     }
 
-    // even if parsing arguments fail, try options - some might be commands that we can execute anyway
+    // even if parsing arguments fail, try options - some might be commands that we can execute
+    // anyway
     if (!parse_options(parser) && parser.has_error()) {
       std::println("{}", error);
       std::exit(1);
     }
 
     // finally, report argument parsing errors
-    if (!argument_error.empty()){
+    if (!argument_error.empty()) {
       std::println("{}", argument_error);
       std::exit(1);
-    } 
+    }
   }
 
   bool parse_arguments(ArgParser& parser) {
@@ -115,11 +115,15 @@ struct ParsedArgs {
           found = true;
         }
       }
+
+      if (parser.has_error()) {
+        return false;
+      }
+
       if (!found) {
         parser.set_error("Could not find option `{}`", parser.current());
         return false;
       }
-      
     }
     return true;
   }
@@ -133,8 +137,8 @@ ParsedArgs parse(std::span<std::string_view> args_in) {
 
 template <typename T>
 _impl::ArgumentTuple<T> tuple_from_args(std::span<Argument::Unevaluated> args) {
+  // TODO only get positional
   _impl::ArgumentTuple<T> args_tuple;
-
   if constexpr (std::derived_from<T, config>) {
     // only load config if T is configurable
     auto config = json5::load(T::get_config_path());
@@ -206,6 +210,7 @@ T load_config(std::vector<std::string_view> args_in) {
 template <typename T>
 T load_config(int argc, char** argv) {
   return load_config<T>({argv, argv + argc});
+  // compile_error(display_string_of(dealias(^^_impl::ArgumentTuple<T>)));
 }
 
 namespace _cli_impl {
@@ -237,11 +242,11 @@ struct config {
   }
 };
 
-class cli {
-public:
+struct cli {
   static constexpr auto option     = annotations::option;
   static constexpr auto positional = annotations::positional;
   static constexpr auto value      = rsl::placeholders::_0;
+  static constexpr auto flag       = annotations::flag;
 
   using shorthand   = annotations::Shorthand;
   using description = annotations::Description;

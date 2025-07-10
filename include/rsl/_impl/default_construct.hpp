@@ -6,10 +6,15 @@
 #include <algorithm>
 #include <rsl/constexpr_assert>
 #include <tuple>  // use rsl::tuple?
+#include <type_traits>
 #include <utility>
 #include <stdexcept>
 
 #include <rsl/meta_traits>
+
+namespace rsl {
+class cli;
+}
 
 namespace rsl::_impl {
 template <std::meta::info R>
@@ -27,16 +32,22 @@ consteval std::meta::info make_arg_tuple() {
       // returns a reflection of a type, not a reflection of a parameter
       args.push_back(make_optional(arg));
     }
-  } else if constexpr (is_class_type(R)) {
+  } else if constexpr (is_class_type(R) &&
+                       (is_aggregate_type(R) || std::derived_from<typename[:R:], rsl::cli>)) {
+    // this is special cased for rsl::cli to allow non-aggregate cli definitions with late updates
+    // rather than construction
     constexpr auto ctx = std::meta::access_context::current();
     for (auto&& base : bases_of(dealias(R), ctx)) {
       args.push_back(extract<std::meta::info (*)()>(
           substitute(^^make_arg_tuple, {reflect_constant(type_of(base))}))());
     }
     for (auto&& arg : nonstatic_data_members_of(R, ctx)) {
+      if (!is_public(arg)) {
+        continue;
+      }
       args.push_back(make_optional(type_of(arg)));
     }
-  } else if constexpr (is_scalar_type(R)) {
+  } else if constexpr (is_scalar_type(R) || is_class_type(R)) {
     args.push_back(make_optional(R));
   } else {
     rsl::compile_error(std::string("unsupported reflection type ") + display_string_of(R));
@@ -46,7 +57,7 @@ consteval std::meta::info make_arg_tuple() {
 }
 
 template <typename T>
-using ArgumentTuple = [:make_arg_tuple<^^T>():];
+using ArgumentTuple = [:make_arg_tuple<dealias(^^T)>():];
 
 namespace _default_impl {
 consteval std::size_t required_args_count(std::meta::info reflection) {
@@ -132,12 +143,16 @@ T default_construct(ArgumentTuple<T> const& args) {
 }
 
 template <typename T>
-  requires(std::is_scalar_v<T>)
+  requires(std::is_scalar_v<T> || std::is_class_v<T> && !std::is_aggregate_v<T>)
 T default_construct(ArgumentTuple<T> const& args) {
   if (auto value = get<0>(args); value) {
-    return T{value};
+    return T(*value);
   } else {
-    return T{};
+    if constexpr (std::is_default_constructible_v<T>) {
+      return T();
+    } else {
+      throw std::runtime_error("Could not construct T");
+    }
   }
 }
 

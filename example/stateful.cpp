@@ -2,12 +2,14 @@
 
 #include <rsl/config>
 
-struct Arguments : rsl::cli {
-  unsigned times;
+class Arguments : public rsl::cli {
   std::vector<std::string> part;
+public:
+  unsigned times;
   explicit Arguments(int) {}
+
   [[=positional]] std::string filter = "";
-  [[=option]] bool durations = false;
+  [[=option]] std::string test = "false";
 
   [[=option]]
   void c(std::string part) { }
@@ -35,5 +37,5 @@ int main(int argc, char** argv) {
   auto args = Arguments(123);
   args.parse_args(argc, argv);
 
-  std::println("{}", args.durations);
+  std::println("{}", args.test);
 }

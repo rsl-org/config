@@ -16,7 +16,7 @@ struct ArgParser {
   std::size_t cursor = 0;
   std::string error;
 
-  std::string_view current() const { return args[cursor]; }
+  std::string_view current() const { return cursor < args.size() ? args[cursor] : ""; }
 
   template <typename... Args>
   void set_error(std::format_string<Args...> fmt, Args&&... args) {
@@ -33,8 +33,9 @@ T parse_value(std::string_view value) {
   } else if constexpr (std::same_as<T, bool>) {
     // allow a few more ways to spell true/false
     // TODO move out of header
-    std::string lower_value;
-    std::ranges::transform(value, lower_value.begin(), [](char c) {return std::tolower(c); });
+    std::string lower_value(value);
+    std::ranges::transform(lower_value, lower_value.begin(), [](char c) {return std::tolower(c); });
+    std::println("{}", lower_value);
     if (lower_value == "1" || lower_value == "y" || lower_value == "yes" || lower_value == "on" ||
         lower_value == "true") {
       return true;
