@@ -35,7 +35,6 @@ T parse_value(std::string_view value) {
     // TODO move out of header
     std::string lower_value(value);
     std::ranges::transform(lower_value, lower_value.begin(), [](char c) {return std::tolower(c); });
-    std::println("{}", lower_value);
     if (lower_value == "1" || lower_value == "y" || lower_value == "yes" || lower_value == "on" ||
         lower_value == "true") {
       return true;

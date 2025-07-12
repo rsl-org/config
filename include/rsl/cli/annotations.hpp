@@ -43,5 +43,4 @@ struct Shorthand : _impl::StringAnnotation {
 struct Description : _impl::StringAnnotation {
     using _impl::StringAnnotation::StringAnnotation;
 };
-
 }  // namespace rsl::annotations

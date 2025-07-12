@@ -243,11 +243,10 @@ struct config {
 };
 
 struct cli {
-  static constexpr auto option     = annotations::option;
-  static constexpr auto positional = annotations::positional;
-  static constexpr auto value      = rsl::placeholders::_0;
-  static constexpr auto flag       = annotations::flag;
-
+  static constexpr auto option      = annotations::option;
+  static constexpr auto positional  = annotations::positional;
+  static constexpr auto value       = rsl::placeholders::_0;
+  static constexpr auto flag        = annotations::flag;
   using shorthand   = annotations::Shorthand;
   using description = annotations::Description;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <meta>
+#include <rsl/constexpr_assert>
 #include <rsl/meta_traits>
 #include <vector>
 #include <string_view>
@@ -104,19 +105,32 @@ struct Option {
   rsl::string_view name;
   rsl::string_view description;
   rsl::span<Parameter const> parameters;
+  char shorthand = '\0';
   bool run_early = false;
   bool is_flag   = false;
 
   std::optional<Unevaluated> parse(ArgParser& parser) {
     auto opt_name = parser.current();
-    if (!opt_name.starts_with("--")) {
+    if (!opt_name.starts_with('-')) {
       return {};
     }
 
-    opt_name.remove_prefix(2);
-    if (opt_name != name) {
-      return {};
+    opt_name.remove_prefix(1);
+    if (!opt_name.starts_with('-')) {
+      if (opt_name.size() != 1) {
+        return {};
+      }
+
+      if (opt_name[0] != shorthand) {
+        return {};
+      }
+    } else {
+      opt_name.remove_prefix(1);
+      if (opt_name != name) {
+        return {};
+      }
     }
+
     ++parser.cursor;  // parser will not unwind after this point
 
     Unevaluated option{.handle = _impl_handler};
@@ -150,6 +164,15 @@ struct Option {
 
     if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
       description = std::define_static_string(desc->data);
+    }
+
+    if (auto shorthand_tag = annotation_of_type<annotations::Shorthand>(reflection);
+        shorthand_tag) {
+      auto short_opt = shorthand_tag->data;
+      if (short_opt.size() != 1) {
+        compile_error("Shorthands need to be a single character");
+      }
+      shorthand = short_opt[0];
     }
 
     if (meta::has_annotation<annotations::Flag>(reflection)) {

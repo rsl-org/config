@@ -11,6 +11,10 @@ std::string& config::get_config_path() {
 void _cli_impl::print_help(_cli_impl::Spec const& spec,
                            std::string_view program_name,
                            std::string_view description) {
+  if (!description.empty()) {
+    std::println("{}", description);
+  }
+
   std::string arguments{};
   for (auto argument : spec.arguments) {
     if (argument.is_optional) {
@@ -20,10 +24,6 @@ void _cli_impl::print_help(_cli_impl::Spec const& spec,
     }
   }
   std::println("usage: {} {}", program_name, arguments);
-
-  if (!description.empty()) {
-    std::println("\n{}", description);
-  }
 
   std::println("\nArguments:");
   for (auto argument : spec.arguments) {
