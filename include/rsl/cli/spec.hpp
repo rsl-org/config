@@ -6,7 +6,7 @@
 #include <rsl/string_view>
 #include <rsl/span>
 #include <rsl/meta_traits>
-#include <rsl/constexpr_assert>
+#include <rsl/assert>
 
 #include "argument.hpp"
 #include "option.hpp"

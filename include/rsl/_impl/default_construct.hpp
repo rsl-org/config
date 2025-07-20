@@ -4,7 +4,7 @@
 #include <concepts>
 #include <ranges>
 #include <algorithm>
-#include <rsl/constexpr_assert>
+#include <rsl/assert>
 #include <tuple>  // use rsl::tuple?
 #include <type_traits>
 #include <utility>

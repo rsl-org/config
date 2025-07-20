@@ -27,6 +27,9 @@ target_include_directories(rsl_config PUBLIC
 find_package(rsl-util REQUIRED)
 target_link_libraries(rsl_config PUBLIC rsl::util)
 
+find_package(rsl-assert REQUIRED)
+target_link_libraries(rsl_config PUBLIC rsl::assert)
+
 add_subdirectory(src)
 
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include)

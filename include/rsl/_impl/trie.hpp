@@ -12,7 +12,7 @@
 #include <rsl/string_constant>
 #include <rsl/string_view>
 #include <rsl/span>
-#include <rsl/constexpr_assert>
+#include <rsl/assert>
 
 namespace rsl::cli {
 namespace _trie_impl {

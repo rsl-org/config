@@ -1,6 +1,6 @@
 #pragma once
 #include <meta>
-#include <rsl/constexpr_assert>
+#include <rsl/assert>
 #include <rsl/meta_traits>
 #include <vector>
 #include <string_view>

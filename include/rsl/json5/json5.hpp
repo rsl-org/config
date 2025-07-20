@@ -4,7 +4,7 @@
 #include <vector>
 #include <charconv>
 
-#include <rsl/constexpr_assert>
+#include <rsl/assert>
 #include <rsl/_impl/default_construct.hpp>
 
 namespace rsl::json5 {
