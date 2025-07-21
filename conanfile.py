@@ -37,7 +37,6 @@ class rslconfigRecipe(ConanFile):
 
     def requirements(self):
         self.requires("rsl-util/0.1", transitive_headers=True)
-        self.requires("rsl-assert/0.1", transitive_headers=True, transitive_libs=True)
 
     def layout(self):
         cmake_layout(self)
@@ -69,4 +68,4 @@ class rslconfigRecipe(ConanFile):
         self.cpp_info.components["config"].includedirs = ["include"]
         self.cpp_info.components["config"].libdirs = ["lib"]
         self.cpp_info.components["config"].libs = ["rsl_config"]
-        self.cpp_info.components["config"].requires = ["rsl-util::util", "rsl-assert::assert"]
+        self.cpp_info.components["config"].requires = ["rsl-util::util"]
