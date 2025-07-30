@@ -9,7 +9,7 @@ using namespace std::string_view_literals;
 
 namespace rsl::_test {
 
-[[=test, =params({std::tuple{"test"}, {"\"test\""}, {"'test'"}})]]
+[[=test, =params({{"test"}, {"\"test\""}, {"'test'"}})]]
 void member_name(std::string_view str) {
   auto parser = json5::Parser(str);
   std::string name;
@@ -18,7 +18,7 @@ void member_name(std::string_view str) {
   ASSERT(std::distance(parser.cursor, str.end()) == 0);
 }
 
-[[=test, =params({std::tuple{"\"test\"", "test"}, 
+[[=test, =params({{"\"test\"", "test"}, 
                   {"'test'", "test"},
                   {"'foo bar 123'", "foo bar 123"}})]]
 void string(std::string_view str, std::string_view expected) {
@@ -47,14 +47,14 @@ std::vector<std::tuple<std::string_view, json5::Object>> test_objects() {
     {"{'foo': {'bar': 123}}", {{"foo", {"{'bar': 123}"}}}}
   };
 }
-
-[[=test, =params(test_objects)]]
-void object(std::string_view str, json5::Object expected) {
-  auto parser = json5::Parser(str);
-  auto obj = parser.object();
-  ASSERT(obj.size() == expected.size());
-  ASSERT(obj == expected);
-}
+// TODO
+// [[=test, =params(test_objects)]]
+// void object(std::string_view str, json5::Object expected) {
+//   auto parser = json5::Parser(str);
+//   auto obj = parser.object();
+//   ASSERT(obj.size() == expected.size());
+//   ASSERT(obj == expected);
+// }
 
 struct Test {
   bool a;

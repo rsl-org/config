@@ -140,7 +140,11 @@ struct ParsedState {
 
     if (!transitions.empty() && prefix.empty()) {
       // prevent aggressive inlining at the root level
-      states.insert(states.begin(), reflect_constant(static_cast<std::meta::info>(words)));
+      std::vector<rsl::string_view> word_list;
+      for (auto word : words) {
+        word_list.emplace_back(define_static_string(word));
+      }
+      states.insert(states.begin(), reflect_constant(std::meta::reflect_constant_array(word_list)));
       return substitute(^^make_trie, states);
     }
 
@@ -165,7 +169,8 @@ struct Trie {
 
   explicit consteval Trie(std::vector<rsl::string_view> words) {
     constexpr_assert(!words.empty(), "An empty word list is not allowed.");
-    constexpr_assert(!_trie_impl::has_duplicates(words), "Duplicates in the word list are not allowed.");
+    constexpr_assert(!_trie_impl::has_duplicates(words),
+                     "Duplicates in the word list are not allowed.");
 
     (this->*extract<void (Trie::*)()>(
                 substitute(^^assign_handlers, {_trie_impl::ParsedState::make(words)})))();
@@ -178,4 +183,4 @@ private:
     find    = &Parser.find;
   }
 };
-}  // namespace rsl
+}  // namespace rsl::cli
