@@ -10,7 +10,8 @@
 #include <rsl/string_constant>
 #include <rsl/span>
 
-#include "parser.hpp"
+#include "accessor.hpp"
+#include "serialize.hpp"
 #include "annotations.hpp"
 #include <rsl/_impl/default_construct.hpp>
 #include <rsl/_impl/prettify.hpp>
@@ -81,7 +82,7 @@ struct Option {
     std::vector<Parameter::Unevaluated> parameters;
     void operator()(void* object) const { (this->*handle)(object); }
 
-    template <std::meta::info R>
+    template <std::meta::info R, std::meta::info Access>
     void do_handle(void* obj) const {
       _impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
 
@@ -89,12 +90,11 @@ struct Option {
         arg(&arg_tuple);
       }
       if constexpr (meta::nonstatic_member_function<R>) {
-        _impl::default_invoke<R>(*static_cast<[:parent_of(R):]*>(obj), arg_tuple);
+        _impl::default_invoke<R>([:Access:](obj), arg_tuple);
       } else if constexpr (is_function(R)) {
         _impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
-        static_cast<[:parent_of(R):]*>(
-            obj) -> [:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
+        [:Access:](obj).[:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
       } else {
         static_assert(false, "Unsupported handler type.");
       }
@@ -155,7 +155,7 @@ struct Option {
     return option;
   }
 
-  consteval Option(std::string_view name_in, std::meta::info reflection)
+  consteval Option(std::string_view name_in, std::meta::info reflection, Accessor const& access)
       : run_early(is_static_member(reflection)) {
     //? make optional? do outside of constant evaluation?
     std::string raw_name = std::string(name_in);
@@ -194,7 +194,7 @@ struct Option {
 
     parameters    = std::define_static_array(args);
     _impl_handler = extract<Unevaluated::handler_type>(
-        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection)}));
+        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection), reflect_constant(std::meta::info(access))}));
   }
 };
 }  // namespace rsl::_cli_impl

@@ -20,7 +20,7 @@ public:
 };
 
 int main(int argc, char** argv) {
-    static constexpr rsl::_cli_impl::Spec spec{^^Arguments};
+    static constexpr rsl::_cli_impl::Spec spec{^^Arguments, {^^Arguments}};
   std::println("bases: {}, arguments: {}, options: {}",
                spec.bases.size(),
                spec.arguments.size(),

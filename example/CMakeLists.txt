@@ -7,3 +7,4 @@ endfunction()
 
 DEFINE_EXAMPLE(simple)
 DEFINE_EXAMPLE(stateful)
+DEFINE_EXAMPLE(extension)

@@ -3,13 +3,15 @@
 #include <string_view>
 #include <vector>
 #include <meta>
+#include <print>
 
 #include <rsl/span>
 #include <rsl/string_view>
 #include <rsl/string_constant>
 #include <rsl/expect>
 
-#include "parser.hpp"
+#include "accessor.hpp"
+#include "serialize.hpp"
 #include "annotations.hpp"
 #include <rsl/_impl/default_construct.hpp>
 #include <rsl/_impl/prettify.hpp>
@@ -96,7 +98,7 @@ struct Argument {
     return std::define_static_string(_constraint.substr(1, _constraint.size() - 2));
   }
 
-  consteval Argument(std::size_t idx, std::meta::info reflection)
+  consteval Argument(std::size_t idx, std::meta::info reflection, Accessor const& access)
       : index(idx)
       , name(std::define_static_string(identifier_of(reflection)))
       , type(std::define_static_string(pretty_type(reflection)))
