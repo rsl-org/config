@@ -5,7 +5,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 26)
 
 project(rsl_config CXX)
-add_library(rsl_config)
+add_library(rsl_config SHARED)
 
 set_target_properties(rsl_config PROPERTIES OUTPUT_NAME rsl_config)
 target_compile_options(rsl_config PUBLIC 
