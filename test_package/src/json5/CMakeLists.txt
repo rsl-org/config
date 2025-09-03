@@ -1,4 +1,4 @@
-target_sources(rsl_config_test 
+target_sources(rsl-config-test
   PRIVATE 
   fundamental.cpp
 )

@@ -1,4 +1,4 @@
-target_sources(rsl_config_test PRIVATE 
+target_sources(rsl-config-test PRIVATE
   dummy.cpp
   trie.cpp
 )
