@@ -23,5 +23,5 @@ class pkgTestConan(ConanFile):
 
     def test(self):
         if can_run(self):
-            cmd = os.path.join(self.cpp.build.bindir, "rsl_config_test")
+            cmd = os.path.join(self.cpp.build.bindir, "rsl-config-test")
             self.run(cmd, env="conanrun")

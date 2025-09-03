@@ -64,5 +64,5 @@ class rslconfigRecipe(ConanFile):
         self.cpp_info.components["config"].set_property("cmake_target_name", "rsl::config")
         self.cpp_info.components["config"].includedirs = ["include"]
         self.cpp_info.components["config"].libdirs = ["lib"]
-        self.cpp_info.components["config"].libs = ["rsl_config"]
+        self.cpp_info.components["config"].libs = ["rsl-config"]
         self.cpp_info.components["config"].requires = ["rsl-util::util"]
