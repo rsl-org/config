@@ -20,9 +20,8 @@ class rslconfigRecipe(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "examples": [True, False],
-        "editable": [True, False]
     }
-    default_options = {"shared": False, "fPIC": True, "examples": False, "editable": False}
+    default_options = {"shared": False, "fPIC": True, "examples": False}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*", "include/*"
@@ -54,9 +53,7 @@ class rslconfigRecipe(ConanFile):
                 "BUILD_EXAMPLES": self.options.examples,
             })
         cmake.build()
-        if self.options.editable:
-            # package is in editable mode - make sure it's installed after building
-            cmake.install()
+        cmake.install()
 
     def package(self):
         cmake = CMake(self)
