@@ -8,18 +8,15 @@ project(rsl-config CXX)
 add_library(rsl-config)
 
 set_target_properties(rsl-config PROPERTIES OUTPUT_NAME rsl-config)
-target_compile_options(rsl-config PUBLIC
-  "-stdlib=libc++"
-  "-freflection"
-  "-fannotation-attributes"
-  "-fparameter-reflection"
-  "-fexpansion-statements"
-  "-fconstexpr-backtrace-limit=0"
-  # "-Wno-c++26-extensions"
-  # "-ftime-trace"
-  # "-fconstexpr-steps=10000000" # required to scan the global namespace
-)
-target_link_options(rsl-config PUBLIC "-stdlib=libc++" "-lc++abi")
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(rsl-config PUBLIC "-stdlib=libc++" "-freflection-latest")
+  target_link_options(rsl-config PUBLIC "-stdlib=libc++")
+  target_link_libraries(rsl-config PUBLIC "c++abi")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(rsl-config PUBLIC "-freflection")
+endif()
+
 target_include_directories(rsl-config PUBLIC
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>)

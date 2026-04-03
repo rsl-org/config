@@ -31,7 +31,7 @@ struct Parameter {
     void do_handle(void* arguments) const {
       constexpr static auto type = remove_cvref(type_of(R));
       using parent               = [:Parent == std::meta::info{} ? type : type_of(Parent):];
-      using arg_tuple            = _impl::ArgumentTuple<parent>;
+      using arg_tuple            = _cli_impl::ArgumentTuple<parent>;
 
       auto value                                    = parse_value<typename[:type:]>(argument);
       get<Idx>(*static_cast<arg_tuple*>(arguments)) = value;
@@ -65,9 +65,7 @@ struct Parameter {
       : index(idx)
       , name(std::define_static_string(identifier_of(reflection)))
       , type(std::define_static_string(pretty_type(reflection)))
-      , is_optional(is_function_parameter(reflection)
-                        ? has_default_argument(reflection)
-                        : has_default_member_initializer(reflection)) {
+      , is_optional(has_default_argument(reflection)) {
     _impl_handler = extract<Unevaluated::handler_type>(substitute(^^Unevaluated::do_handle,
                                                                   {std::meta::reflect_constant(idx),
                                                                    reflect_constant(reflection),
@@ -84,17 +82,17 @@ struct Option {
 
     template <std::meta::info R, std::meta::info Access>
     void do_handle(void* obj) const {
-      _impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
+      _cli_impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
 
       for (auto arg : parameters) {
         arg(&arg_tuple);
       }
       if constexpr (meta::nonstatic_member_function<R>) {
-        _impl::default_invoke<R>([:Access:](obj), arg_tuple);
+        _cli_impl::default_invoke<R>([:Access:](obj), arg_tuple);
       } else if constexpr (is_function(R)) {
-        _impl::default_invoke<R>(arg_tuple);
+        _cli_impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
-        [:Access:](obj).[:R:] = _impl::default_construct<typename[:type_of(R):]>(arg_tuple);
+        [:Access:](obj).[:R:] = _cli_impl::default_construct<typename[:type_of(R):]>(arg_tuple);
       } else {
         static_assert(false, "Unsupported handler type.");
       }
@@ -162,11 +160,11 @@ struct Option {
     std::ranges::transform(raw_name, raw_name.begin(), [](char c) { return c == '_' ? '-' : c; });
     name = std::define_static_string(raw_name);
 
-    if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
+    if (auto desc = rsl::meta::get_annotation<annotations::Description>(reflection); desc) {
       description = std::define_static_string(desc->data);
     }
 
-    if (auto shorthand_tag = annotation_of_type<annotations::Shorthand>(reflection);
+    if (auto shorthand_tag = rsl::meta::get_annotation<annotations::Shorthand>(reflection);
         shorthand_tag) {
       auto short_opt = shorthand_tag->data;
       if (short_opt.size() != 1) {

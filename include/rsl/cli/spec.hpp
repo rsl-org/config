@@ -33,7 +33,7 @@ struct Spec {
     // subcommands change parser context, they do not need `--` prefix
     // but cannot be used in combination with variadic or optional arguments
     // TODO implement
-    std::vector<Spec> subcommands;
+    // std::vector<Spec> subcommands;
 
     bool allow_positional;
     Accessor accessor;
@@ -62,22 +62,21 @@ struct Spec {
     }
 
     consteval void parse_base(std::meta::info self, std::meta::info r) {
-      if (is_convertible_type(type_of(r), ^^config) || is_convertible_type(type_of(r), ^^cli)) {
-        // special case built-in bases. These need to access the child type
+      // if (is_convertible_type(type_of(r), ^^config) || is_convertible_type(type_of(r), ^^cli)) {
+      //   // special case built-in bases. These need to access the child type
 
-        for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
-          if (!is_function_template(fnc_template) || !can_substitute(fnc_template, {self})) {
-            continue;
-          }
+      //   for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
+      //     if (!is_function_template(fnc_template) || !can_substitute(fnc_template, {self})) {
+      //       continue;
+      //     }
 
-          auto fnc = substitute(fnc_template, {self});
-          if (meta::has_annotation<annotations::Option>(fnc)) {
-            options.emplace_back(identifier_of(fnc_template), fnc,accessor);
-          }
-        }
-      }
+      //     auto fnc = substitute(fnc_template, {self});
+      //     if (meta::has_annotation<annotations::Option>(fnc)) {
+      //       options.emplace_back(identifier_of(fnc_template), fnc, accessor);
+      //     }
+      //   }
+      // }
       bases.emplace_back();
-      // TODO positional argument handling
     }
 
     consteval bool parse_argument(std::size_t idx, std::meta::info r) {
@@ -150,15 +149,15 @@ struct Spec {
         }
       }
 
-      if (!subcommands.empty()) {
-        if (has_variadic) {
-          rsl::compile_error("Variadic arguments and subcommands cannot be combined.");
-        }
+      // if (!subcommands.empty()) {
+      //   if (has_variadic) {
+      //     rsl::compile_error("Variadic arguments and subcommands cannot be combined.");
+      //   }
 
-        if (has_optional) {
-          rsl::compile_error("Optional arguments and subcommands cannot be combined.");
-        }
-      }
+      //   if (has_optional) {
+      //     rsl::compile_error("Optional arguments and subcommands cannot be combined.");
+      //   }
+      // }
     }
 
     friend struct Spec;

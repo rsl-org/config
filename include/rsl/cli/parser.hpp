@@ -124,14 +124,14 @@ ParsedArgs parse(std::span<std::string_view> args_in) {
 }
 
 template <typename T>
-_impl::ArgumentTuple<T> tuple_from_args(std::span<Argument::Unevaluated> args) {
+auto tuple_from_args(std::span<Argument::Unevaluated> args) {
   // TODO only get positional
-  _impl::ArgumentTuple<T> args_tuple;
-  if constexpr (std::derived_from<T, config>) {
-    // only load config if T is configurable
-    auto config = json5::load(T::get_config_path());
-    config.template update_argtuple<T>(args_tuple);
-  }
+  _cli_impl::ArgumentTuple<T> args_tuple;
+  // if constexpr (std::derived_from<T, config>) {
+  //   // only load config if T is configurable
+  //   auto config = json5::load(T::get_config_path());
+  //   config.template update_argtuple<T>(args_tuple);
+  // }
 
   for (auto argument : args) {
     argument(&args_tuple);
@@ -142,7 +142,7 @@ _impl::ArgumentTuple<T> tuple_from_args(std::span<Argument::Unevaluated> args) {
 template <typename T>
 T construct_from_args(std::span<Argument::Unevaluated> args) {
   auto args_tuple = tuple_from_args<T>(args);
-  return _impl::default_construct<T>(args_tuple);
+  return _cli_impl::default_construct<T>(args_tuple);
 }
 
 template <typename T>

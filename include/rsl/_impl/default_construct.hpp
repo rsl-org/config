@@ -16,7 +16,7 @@ namespace rsl {
 class cli;
 }
 
-namespace rsl::_impl {
+namespace rsl::_cli_impl {
 template <std::meta::info R>
 consteval std::meta::info make_arg_tuple() {
   std::vector<std::meta::info> args;
@@ -50,14 +50,14 @@ consteval std::meta::info make_arg_tuple() {
   } else if constexpr (is_scalar_type(R) || is_class_type(R)) {
     args.push_back(make_optional(R));
   } else {
-    rsl::compile_error(std::string("unsupported reflection type ") + display_string_of(R));
+    throw(std::string("unsupported reflection type ") + display_string_of(R));
   }
 
   return substitute(^^std::tuple, args);
 }
 
 template <typename T>
-using ArgumentTuple = [:make_arg_tuple<dealias(^^T)>():];
+using ArgumentTuple = [:make_arg_tuple<^^T>():];
 
 namespace _default_impl {
 consteval std::size_t required_args_count(std::meta::info reflection) {
@@ -78,7 +78,7 @@ consteval std::size_t required_args_count(std::meta::info reflection) {
 
 template <std::size_t Offset, std::size_t Max, typename F, typename... Args>
 decltype(auto) do_visit(F visitor, std::size_t index, Args&&... extra_args) {
-  template for (constexpr auto Idx : std::views::iota(0zu, Max)) {
+  template for (constexpr auto Idx : std::views::iota(0zu, Max + 1)) {
     if (Idx == index) {
       return visitor(std::make_index_sequence<Offset + Idx>(), std::forward<Args>(extra_args)...);
     }
@@ -87,7 +87,7 @@ decltype(auto) do_visit(F visitor, std::size_t index, Args&&... extra_args) {
 }
 
 template <std::size_t Bases, std::size_t Required, typename T, typename F, typename... Args>
-decltype(auto) visit(F visitor, ArgumentTuple<T> const& args, Args&&... extra_args) {
+decltype(auto) visit(F visitor, auto const& args, Args&&... extra_args) {
   constexpr static std::size_t size         = std::tuple_size_v<ArgumentTuple<T>>;
   constexpr static std::size_t optional_min = Bases + Required;
   constexpr static std::size_t branches     = size - optional_min;
@@ -125,9 +125,14 @@ template <typename T>
 constexpr inline std::size_t base_count =
     bases_of(^^T, std::meta::access_context::current()).size();
 
+// TODO: use ArgumentTuple<T> directly once Bug 123237 is fixed
+//? Due to bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=123237
+//? we cannot use ArgumentTuple<T> directly as parameter or return type
+//? however, auto seems to be fine
+
 template <typename T>
   requires(std::is_aggregate_v<T> && !std::is_array_v<T>)
-T default_construct(ArgumentTuple<T> const& args) {
+T default_construct(auto const& args) {
   constexpr static auto num_bases = base_count<T>;
   constexpr static auto ctx       = std::meta::access_context::current();
 
@@ -144,7 +149,7 @@ T default_construct(ArgumentTuple<T> const& args) {
 
 template <typename T>
   requires(std::is_scalar_v<T> || std::is_class_v<T> && !std::is_aggregate_v<T>)
-T default_construct(ArgumentTuple<T> const& args) {
+T default_construct(auto const& args) {
   if (auto value = get<0>(args); value) {
     return T(*value);
   } else {
@@ -157,8 +162,11 @@ T default_construct(ArgumentTuple<T> const& args) {
 }
 
 template <std::meta::info R>
+using arg_t = ArgumentTuple<typename[:type_of(R):]>;
+
+template <std::meta::info R>
   requires(meta::function<R> || meta::static_member_function<R>)
-decltype(auto) default_invoke(ArgumentTuple<typename[:type_of(R):]> const& args) {
+decltype(auto) default_invoke(auto const& args) {
   return _default_impl::visit<0, required_arg_count<R>, typename[:type_of(R):]>(
       [&]<std::size_t... Idx>(std::index_sequence<Idx...>) { return [:R:](*get<Idx>(args)...); },
       args);
@@ -171,7 +179,7 @@ decltype(auto) default_invoke() =
 
 template <std::meta::info R, typename T>
   requires(meta::nonstatic_member_function<R>)
-decltype(auto) default_invoke(T&& self, ArgumentTuple<typename[:type_of(R):]> const& args) {
+decltype(auto) default_invoke(T&& self, auto const& args) {
   static_assert(std::convertible_to<std::remove_cvref_t<T>, typename[:parent_of(R):]>,
                 "wrong type for self argument");
 

@@ -30,7 +30,7 @@ struct Value {
       return as_number<T>();
     } else if constexpr (std::same_as<T, std::string>) {
       return as_string();
-    } else if constexpr (meta::specializes<T, ^^std::vector>) {
+    } else if constexpr (rsl::specializes<T, ^^std::vector>) {
       throw std::runtime_error("unimplemented");
     } else if constexpr (std::is_aggregate_v<T>) {
       return as_aggregate<T>();
@@ -40,7 +40,7 @@ struct Value {
   }
 
   template <typename T>
-  void update_argtuple(_impl::ArgumentTuple<T>& args) const {
+  void update_argtuple(_cli_impl::ArgumentTuple<T>& args) const {
     Object obj = as_object();
     if (obj.empty()) {
       return;
@@ -62,9 +62,9 @@ struct Value {
 
   template <typename T>
   T as_aggregate() const {
-    auto args = _impl::ArgumentTuple<T>{};
+    auto args = _cli_impl::ArgumentTuple<T>{};
     update_argtuple<T>(args);
-    return _impl::default_construct<T>(args);
+    return _cli_impl::default_construct<T>(args);
   }
 
   template <typename T>

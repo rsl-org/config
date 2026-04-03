@@ -36,8 +36,8 @@ void parse_args(T&& object, std::vector<std::string_view> args_in) {
 }
 
 template <typename T>
-void parse_args(T&& object, int argc, char** argv) {
-  return parse_args(std::forward<T>(object), {argv, argv + argc});
+void parse_args(T& object, int argc, char** argv) {
+  return parse_args(object, {argv, argv + argc});
 }
 
 template <typename T>
@@ -54,7 +54,7 @@ T load_config(std::vector<std::string_view> args_in) {
 template <typename T>
 T load_config(int argc, char** argv) {
   return load_config<T>({argv, argv + argc});
-  // compile_error(display_string_of(dealias(^^_impl::ArgumentTuple<T>)));
+  // compile_error(display_string_of(dealias(^^_cli_impl::ArgumentTuple<T>)));
 }
 
 namespace _cli_impl {
@@ -68,7 +68,7 @@ void default_help() {
   constexpr static _cli_impl::Spec spec{remove_cvref(^^T), {remove_cvref(^^T)}};
   auto program_name = ProgramInfo::name();
   auto description  = std::string_view{};
-  if (auto desc = annotation_of_type<annotations::Description>(^^T); desc) {
+  if (auto desc = rsl::meta::get_annotation<annotations::Description>(^^T); desc) {
     description = desc->data;
   }
   print_help(spec, program_name, description);

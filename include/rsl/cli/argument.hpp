@@ -27,42 +27,37 @@ struct Argument {
 
     void operator()(void* args) const { (this->*handle)(args); }
 
-    template <std::meta::info R, typename T>
-    void validate(T value) const {
-      auto parent = display_string_of(parent_of(R));
-      if constexpr (rsl::meta::has_annotation(R, ^^rsl::_expect_impl::Expect)) {
-        constexpr static auto constraint = [:constant_of(meta::get_annotation(
-                                                 R,
-                                                 ^^rsl::_expect_impl::Expect)):];
+    // template <std::meta::info R, typename T>
+    // void validate(T value) const {
+    //   auto parent = display_string_of(parent_of(R));
+    //   if constexpr (rsl::meta::has_annotation(R, ^^rsl::_expect_impl::Expect)) {
+    //     constexpr static auto constraint = [:constant_of(meta::get_annotation(
+    //                                              R,
+    //                                              ^^rsl::_expect_impl::Expect)):];
 
-        std::vector<std::string> failed_terms;
-        if (constraint.eval_verbose(std::tuple{value}, failed_terms)) {
-          return;
-        }
+    //     std::vector<std::string> failed_terms;
+    //     if (constraint.eval_verbose(std::tuple{value}, failed_terms)) {
+    //       return;
+    //     }
 
-        std::println("Validation failed for argument `{}` of `{}`", identifier_of(R), parent);
-        // for (auto&& term : failed_terms | std::views::reverse) {
-        //   std::println("    => {}{}{} evaluated to {}false{}",
-        //                fg::Blue,
-        //                term,
-        //                style::Reset,
-        //                fg::Red,
-        //                style::Reset);
-        // }
-        std::exit(1);
-      }
-    }
+    //     std::println("Validation failed for argument `{}` of `{}`", identifier_of(R), parent);
+    //     // for (auto&& term : failed_terms | std::views::reverse) {
+    //     //   std::println("    => {}{}{} evaluated to {}false{}",
+    //     //                fg::Blue,
+    //     //                term,
+    //     //                style::Reset,
+    //     //                fg::Red,
+    //     //                style::Reset);
+    //     // }
+    //     std::exit(1);
+    //   }
+    // }
 
-    template <std::size_t Idx, std::meta::info R>
+    template <std::size_t Idx, typename ValueT, typename ArgT>
     void do_handle(void* arguments) const {
-      using parent = [:is_function_parameter(R) ? type_of(parent_of(R)) : parent_of(R):];
-
-      using type = [:remove_cvref(type_of(R)):];
-      auto value = parse_value<type>(argument);
-      //   validate<R>(value);
-
-      using arg_tuple                               = _impl::ArgumentTuple<parent>;
-      get<Idx>(*static_cast<arg_tuple*>(arguments)) = value;
+      auto value = parse_value<ValueT>(argument);
+      //   validate<ValueT>(value);
+      get<Idx>(*static_cast<ArgT*>(arguments)) = value;
     }
   };
 
@@ -91,34 +86,34 @@ struct Argument {
     return Unevaluated{.handle = _impl_handler, .argument = current};
   }
 
-  template <std::meta::info R, auto Constraint>
-  constexpr char const* stringify_constraint() {
-    std::string _constraint = Constraint.to_string(identifier_of(R));
-    // strip outer parenthesis and make static
-    return std::define_static_string(_constraint.substr(1, _constraint.size() - 2));
-  }
+  // template <std::meta::info R, auto Constraint>
+  // constexpr char const* stringify_constraint() {
+  //   std::string _constraint = Constraint.to_string(identifier_of(R));
+  //   // strip outer parenthesis and make static
+  //   return std::define_static_string(_constraint.substr(1, _constraint.size() - 2));
+  // }
 
-  consteval Argument(std::size_t idx, std::meta::info reflection, Accessor const& access)
+  consteval Argument(std::size_t idx, std::meta::info r, Accessor const& access)
       : index(idx)
-      , name(std::define_static_string(identifier_of(reflection)))
-      , type(std::define_static_string(pretty_type(reflection)))
-      , is_optional(is_function_parameter(reflection)
-                        ? has_default_argument(reflection)
-                        : has_default_member_initializer(reflection)) {
-    if (auto desc = annotation_of_type<annotations::Description>(reflection); desc) {
+      , name(std::define_static_string(identifier_of(r)))
+      , type(std::define_static_string(pretty_type(r)))
+      , is_optional(has_default_member_initializer(r)) {
+    if (auto desc = rsl::meta::get_annotation<annotations::Description>(r); desc) {
       description = desc->data;
     }
 
-    if (rsl::meta::has_annotation(reflection, ^^rsl::_expect_impl::Expect)) {
-      auto annotation = rsl::meta::get_annotation(reflection, ^^rsl::_expect_impl::Expect);
-      constraint      = (this->*extract<char const* (Argument::*)()>(substitute(
-                               ^^stringify_constraint,
-                               {reflect_constant(reflection), constant_of(annotation)})))();
-    }
-
+    // if (rsl::meta::has_annotation(r, ^^rsl::_expect_impl::Expect)) {
+    //   auto annotation = rsl::meta::get_annotation<rsl::_expect_impl::Expect>(r);
+    //   constraint      = (this->*extract<char const* (Argument::*)()>(substitute(
+    //                            ^^stringify_constraint,
+    //                            {reflect_constant(r), constant_of(annotation)})))();
+    // }
+    auto arg_type = substitute(^^_cli_impl::ArgumentTuple, {parent_of(r)});
     _impl_handler = extract<Unevaluated::handler_type>(
         substitute(^^Unevaluated::do_handle,
-                   {std::meta::reflect_constant(idx), reflect_constant(reflection)}));
+                   {std::meta::reflect_constant(idx), 
+                    remove_cvref(type_of(r)),
+                    arg_type}));
   }
 };
 }  // namespace rsl::_cli_impl

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cctype>
 
-#include <rsl/_impl/util/to_string.hpp>
+#include <rsl/serialize>
 
 #include <rsl/json5/serializer.hpp>
 
