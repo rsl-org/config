@@ -3,6 +3,14 @@
 #include <meta>
 #include <optional>
 
+#ifdef __clang__
+#define pre(...)
+#define post(...)
+#define contract_assert(...) ((void)0)
+#else
+  #include <contracts>
+#endif
+
 #include <rsl/string_view>
 #include <rsl/span>
 #include <rsl/meta_traits>
@@ -69,7 +77,7 @@ struct Spec {
 
           auto fnc = substitute(fnc_template, {self});
           if (meta::has_annotation<annotations::Option>(fnc)) {
-            options.emplace_back(identifier_of(fnc_template), fnc);
+            options.emplace_back(identifier_of(fnc_template), fnc, self);
           }
         }
       }

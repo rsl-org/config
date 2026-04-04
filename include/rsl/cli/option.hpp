@@ -62,7 +62,7 @@ struct Parameter {
 
   consteval Parameter(std::size_t idx, std::meta::info reflection, std::meta::info parent)
       : index(idx)
-      , name(std::define_static_string(identifier_of(reflection)))
+      , name(std::define_static_string(has_identifier(reflection) ? identifier_of(reflection) : ""))
       , type(std::define_static_string(pretty_type(reflection)))
       , is_optional(has_default_argument(reflection)) {
     _impl_handler = extract<Unevaluated::handler_type>(substitute(^^Unevaluated::do_handle,
@@ -79,7 +79,7 @@ struct Option {
     std::vector<Parameter::Unevaluated> parameters;
     void operator()(void* object) const { (this->*handle)(object); }
 
-    template <std::meta::info R>
+    template <std::meta::info R, std::meta::info Parent>
     void do_handle(void* obj) const {
       _cli_impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
 
@@ -87,7 +87,7 @@ struct Option {
         arg(&arg_tuple);
       }
       if constexpr (meta::nonstatic_member_function<R>) {
-        _cli_impl::default_invoke<R>(*static_cast<typename[:parent_of(R):]*>(obj), arg_tuple);
+        _cli_impl::default_invoke<R>(*static_cast<typename[:Parent:]*>(obj), arg_tuple);
       } else if constexpr (is_function(R)) {
         _cli_impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
@@ -152,7 +152,7 @@ struct Option {
     return option;
   }
 
-  consteval Option(std::string_view name_in, std::meta::info reflection)
+  consteval Option(std::string_view name_in, std::meta::info reflection, std::meta::info parent = std::meta::info{})
       : run_early(is_static_member(reflection)) {
     //? make optional? do outside of constant evaluation?
     std::string raw_name = std::string(name_in);
@@ -185,13 +185,14 @@ struct Option {
       args.push_back(parameter);
     } else {
       for (auto param : parameters_of(reflection)) {
+        if (is_explicit_object_parameter(param)) { continue; }
         args.emplace_back(index++, param, reflection);
       }
     }
 
     parameters    = std::define_static_array(args);
     _impl_handler = extract<Unevaluated::handler_type>(
-        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection)}));
+        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection), reflect_constant(parent)}));
   }
 };
 }  // namespace rsl::_cli_impl

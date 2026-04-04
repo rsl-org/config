@@ -93,8 +93,8 @@ struct cli : _cli_impl::cli_base {
 
   template <typename T>
   [[= option]] [[noreturn]]
-  void help(this T&&) {
-    _cli_impl::default_help<std::remove_cvref_t<T>>();
+  void help(this T const&) {
+    _cli_impl::default_help<T>();
   }
 };
 

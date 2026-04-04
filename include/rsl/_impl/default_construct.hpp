@@ -23,11 +23,13 @@ consteval std::meta::info make_arg_tuple() {
   auto make_optional = [](auto r) { return substitute(^^std::optional, {r}); };
 
   if constexpr (is_function(R)) {
-    for (auto& arg : parameters_of(R)) {
+    for (auto arg : parameters_of(R)) {
+      if (is_explicit_object_parameter(arg)) { continue; }
       args.push_back(make_optional(type_of(arg)));
     }
   } else if constexpr (is_function_type(R)) {
-    for (auto&& arg : parameters_of(dealias(R))) {
+    for (auto arg : parameters_of(dealias(R))) {
+      if (is_explicit_object_parameter(arg)) { continue; }
       // turns out parameters_of of a reflection of a function type
       // returns a reflection of a type, not a reflection of a parameter
       args.push_back(make_optional(arg));
@@ -37,11 +39,11 @@ consteval std::meta::info make_arg_tuple() {
     // this is special cased for rsl::cli to allow non-aggregate cli definitions with late updates
     // rather than construction
     constexpr auto ctx = std::meta::access_context::current();
-    for (auto&& base : bases_of(dealias(R), ctx)) {
+    for (auto base : bases_of(dealias(R), ctx)) {
       args.push_back(extract<std::meta::info (*)()>(
           substitute(^^make_arg_tuple, {reflect_constant(type_of(base))}))());
     }
-    for (auto&& arg : nonstatic_data_members_of(R, ctx)) {
+    for (auto arg : nonstatic_data_members_of(R, ctx)) {
       if (!is_public(arg)) {
         continue;
       }
@@ -64,7 +66,7 @@ consteval std::size_t required_args_count(std::meta::info reflection) {
   if (is_function(reflection)) {
     auto members = parameters_of(reflection);
     return std::count_if(members.begin(), members.end(), [](auto x) {
-      return !has_default_argument(x);
+      return !is_explicit_object_parameter(x) && !has_default_argument(x);
     });
   } else if (is_type(reflection)) {
     auto members = nonstatic_data_members_of(reflection, std::meta::access_context::current());
@@ -78,7 +80,7 @@ consteval std::size_t required_args_count(std::meta::info reflection) {
 
 template <std::size_t Offset, std::size_t Max, typename F, typename... Args>
 decltype(auto) do_visit(F visitor, std::size_t index, Args&&... extra_args) {
-  template for (constexpr auto Idx : std::views::iota(0zu, Max + 1)) {
+  template for (constexpr auto Idx : std::views::iota(0zu, Max)) {
     if (Idx == index) {
       return visitor(std::make_index_sequence<Offset + Idx>(), std::forward<Args>(extra_args)...);
     }

@@ -14,7 +14,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   target_link_options(rsl-config PUBLIC "-stdlib=libc++")
   target_link_libraries(rsl-config PUBLIC "c++abi")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(rsl-config PUBLIC "-freflection")
+  target_compile_options(rsl-config PUBLIC "-freflection" "-fcontracts")
 endif()
 
 target_include_directories(rsl-config PUBLIC
