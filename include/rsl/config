@@ -11,7 +11,6 @@
 #include <rsl/string_view>
 #include <rsl/expect>
 
-#include <rsl/cli/accessor.hpp>
 #include <rsl/cli/annotations.hpp>
 #include <rsl/cli/spec.hpp>
 #include <rsl/cli/parser.hpp>
@@ -27,7 +26,7 @@ public:
 };
 
 template <typename T>
-void parse_args(T&& object, std::vector<std::string_view> args_in) {
+void parse_args(T& object, std::vector<std::string_view> args_in) {
   auto args = _cli_impl::parse<std::remove_cvref_t<T>>(args_in);
 
   ProgramInfo::set_name(args.program_name);
@@ -41,7 +40,7 @@ void parse_args(T& object, int argc, char** argv) {
 }
 
 template <typename T>
-T load_config(std::vector<std::string_view> args_in) {
+T parse_args(std::vector<std::string_view> args_in) {
   auto args = _cli_impl::parse<T>(args_in);
 
   ProgramInfo::set_name(args.program_name);
@@ -52,9 +51,8 @@ T load_config(std::vector<std::string_view> args_in) {
 }
 
 template <typename T>
-T load_config(int argc, char** argv) {
-  return load_config<T>({argv, argv + argc});
-  // compile_error(display_string_of(dealias(^^_cli_impl::ArgumentTuple<T>)));
+T parse_args(int argc, char** argv) {
+  return parse_args<T>({argv, argv + argc});
 }
 
 namespace _cli_impl {
@@ -65,32 +63,22 @@ void print_help(_cli_impl::Spec const& spec,
 template <typename T>
 [[noreturn]]
 void default_help() {
-  constexpr static _cli_impl::Spec spec{remove_cvref(^^T), {remove_cvref(^^T)}};
-  auto program_name = ProgramInfo::name();
-  auto description  = std::string_view{};
-  if (auto desc = rsl::meta::get_annotation<annotations::Description>(^^T); desc) {
-    description = desc->data;
-  }
-  print_help(spec, program_name, description);
+  constexpr static _cli_impl::Spec spec{^^T};
+  // auto program_name = ProgramInfo::name();
+  // auto description  = std::string_view{};
+  // if (auto desc = rsl::meta::get_annotation<annotations::Description>(^^T); desc) {
+  //   description = desc->data;
+  // }
+  // print_help(spec, program_name, description);
   std::exit(0);
 }
 }  // namespace _cli_impl
 
-struct config {
-  static std::string& get_config_path();
-
-  template <typename T>
-  [[= annotations::option]] [[noreturn]]
-  static void help() {
-    _cli_impl::default_help<T>();
-  }
-};
 
 namespace _cli_impl {
 struct cli_base {
   static constexpr auto option     = annotations::option;
   static constexpr auto positional = annotations::positional;
-  static constexpr auto value      = rsl::placeholders::_0;
   static constexpr auto flag       = annotations::flag;
   using shorthand                  = annotations::Shorthand;
   using description                = annotations::Description;
@@ -104,15 +92,9 @@ struct cli : _cli_impl::cli_base {
   }
 
   template <typename T>
-    requires(std::derived_from<T, config>)
-  [[= option]] static void config_path(std::string new_path) {
-    T::get_config_path() = std::move(new_path);
-  }
-
-  template <typename T>
   [[= option]] [[noreturn]]
-  static void help() {
-    _cli_impl::default_help<T>();
+  void help(this T&&) {
+    _cli_impl::default_help<std::remove_cvref_t<T>>();
   }
 };
 

@@ -10,7 +10,6 @@
 #include <rsl/string_constant>
 #include <rsl/span>
 
-#include "accessor.hpp"
 #include "serialize.hpp"
 #include "annotations.hpp"
 #include <rsl/_impl/default_construct.hpp>
@@ -80,7 +79,7 @@ struct Option {
     std::vector<Parameter::Unevaluated> parameters;
     void operator()(void* object) const { (this->*handle)(object); }
 
-    template <std::meta::info R, std::meta::info Access>
+    template <std::meta::info R>
     void do_handle(void* obj) const {
       _cli_impl::ArgumentTuple<typename[:type_of(R):]> arg_tuple;
 
@@ -88,11 +87,11 @@ struct Option {
         arg(&arg_tuple);
       }
       if constexpr (meta::nonstatic_member_function<R>) {
-        _cli_impl::default_invoke<R>([:Access:](obj), arg_tuple);
+        _cli_impl::default_invoke<R>(*static_cast<typename[:parent_of(R):]*>(obj), arg_tuple);
       } else if constexpr (is_function(R)) {
         _cli_impl::default_invoke<R>(arg_tuple);
       } else if constexpr (is_object_type(type_of(R))) {
-        [:Access:](obj).[:R:] = _cli_impl::default_construct<typename[:type_of(R):]>(arg_tuple);
+        *static_cast<typename[:type_of(R):]*>(obj).[:R:] = _cli_impl::default_construct<typename[:type_of(R):]>(arg_tuple);
       } else {
         static_assert(false, "Unsupported handler type.");
       }
@@ -153,7 +152,7 @@ struct Option {
     return option;
   }
 
-  consteval Option(std::string_view name_in, std::meta::info reflection, Accessor const& access)
+  consteval Option(std::string_view name_in, std::meta::info reflection)
       : run_early(is_static_member(reflection)) {
     //? make optional? do outside of constant evaluation?
     std::string raw_name = std::string(name_in);
@@ -192,7 +191,7 @@ struct Option {
 
     parameters    = std::define_static_array(args);
     _impl_handler = extract<Unevaluated::handler_type>(
-        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection), reflect_constant(std::meta::info(access))}));
+        substitute(^^Unevaluated::do_handle, {reflect_constant(reflection)}));
   }
 };
 }  // namespace rsl::_cli_impl

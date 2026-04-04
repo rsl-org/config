@@ -8,7 +8,6 @@
 #include <rsl/meta_traits>
 #include <rsl/assert>
 
-#include "accessor.hpp"
 #include "argument.hpp"
 #include "option.hpp"
 #include "annotations.hpp"
@@ -36,11 +35,9 @@ struct Spec {
     // std::vector<Spec> subcommands;
 
     bool allow_positional;
-    Accessor accessor;
 
-    consteval explicit Parser(Accessor accessor, bool allow_positional = true)
-        : allow_positional(allow_positional)
-        , accessor(std::move(accessor)) {}
+    consteval explicit Parser(bool allow_positional = true)
+        : allow_positional(allow_positional) {}
 
     consteval void parse(std::meta::info r) {
       auto ctx = std::meta::access_context::current();
@@ -62,20 +59,20 @@ struct Spec {
     }
 
     consteval void parse_base(std::meta::info self, std::meta::info r) {
-      // if (is_convertible_type(type_of(r), ^^config) || is_convertible_type(type_of(r), ^^cli)) {
-      //   // special case built-in bases. These need to access the child type
+      if (is_convertible_type(type_of(r), ^^cli)) {
+        // special case built-in bases. These need to access the child type
 
-      //   for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
-      //     if (!is_function_template(fnc_template) || !can_substitute(fnc_template, {self})) {
-      //       continue;
-      //     }
+        for (auto fnc_template : members_of(type_of(r), std::meta::access_context::current())) {
+          if (!is_function_template(fnc_template) || !can_substitute(fnc_template, {self})) {
+            continue;
+          }
 
-      //     auto fnc = substitute(fnc_template, {self});
-      //     if (meta::has_annotation<annotations::Option>(fnc)) {
-      //       options.emplace_back(identifier_of(fnc_template), fnc, accessor);
-      //     }
-      //   }
-      // }
+          auto fnc = substitute(fnc_template, {self});
+          if (meta::has_annotation<annotations::Option>(fnc)) {
+            options.emplace_back(identifier_of(fnc_template), fnc);
+          }
+        }
+      }
       bases.emplace_back();
     }
 
@@ -88,15 +85,14 @@ struct Spec {
         if (!allow_positional) {
           compile_error("Positional arguments are only supported at the config root.");
         }
-        arguments.emplace_back(idx, r, accessor);
+        arguments.emplace_back(idx, r);
         return true;
       }
 
       if (extract<bool>(substitute(^^std::derived_from, {type_of(r), ^^config}))) {
         auto name = identifier_of(r);
 
-        // TODO adjust accessor?
-        auto subparser = Parser(accessor, false);
+        auto subparser = Parser(false);
         subparser.parse(type_of(r));
 
         for (auto option : subparser.options) {
@@ -121,7 +117,7 @@ struct Spec {
         return false;
       }
 
-      options.emplace_back(identifier_of(r), r, accessor);
+      options.emplace_back(identifier_of(r), r);
       return true;
     }
 
@@ -173,9 +169,9 @@ struct Spec {
     return value;
   }
 
-  consteval explicit Spec(std::meta::info r, Accessor const& accessor) : name(identifier_of(r)) {
+  consteval explicit Spec(std::meta::info r) : name(identifier_of(r)) {
     auto type   = is_type(r) ? r : type_of(r);
-    auto parser = Parser(accessor);
+    auto parser = Parser();
     parser.parse(type);
     parser.validate();
     std::vector<rsl::span<Argument const>> meta_bases;

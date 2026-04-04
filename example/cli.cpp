@@ -5,8 +5,8 @@ struct Arguments : rsl::cli {
   [[= positional]] std::string text;
   [[= positional]] int times = 5;
   // [[=option, =flag]] bool baz = false;
-  // [[= option]] void test(char x) { std::println("text: {}, times: {}, x: {}", text, times, x); }
-  // [[= option]] static void cmd() { std::exit(1); }
+  [[= option]] void test(char x) { std::println("text: {}, times: {}, x: {}", text, times, x); }
+  [[= option]] static void cmd() { std::exit(1); }
 };
 
 int main(int argc, char** argv) {

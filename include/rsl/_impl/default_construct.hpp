@@ -4,12 +4,12 @@
 #include <concepts>
 #include <ranges>
 #include <algorithm>
-#include <rsl/assert>
 #include <tuple>  // use rsl::tuple?
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
 
+#include <rsl/assert>
 #include <rsl/meta_traits>
 
 namespace rsl {
@@ -160,9 +160,6 @@ T default_construct(auto const& args) {
     }
   }
 }
-
-template <std::meta::info R>
-using arg_t = ArgumentTuple<typename[:type_of(R):]>;
 
 template <std::meta::info R>
   requires(meta::function<R> || meta::static_member_function<R>)

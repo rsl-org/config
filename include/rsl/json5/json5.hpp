@@ -39,8 +39,9 @@ struct Value {
     }
   }
 
+  //? bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=123237
   template <typename T>
-  void update_argtuple(_cli_impl::ArgumentTuple<T>& args) const {
+  void update_argtuple(auto/*_cli_impl::ArgumentTuple<T>*/& args) const {
     Object obj = as_object();
     if (obj.empty()) {
       return;

@@ -119,20 +119,13 @@ struct ParsedArgs {
 
 template <typename T>
 ParsedArgs parse(std::span<std::string_view> args_in) {
-  static constexpr _cli_impl::Spec spec{^^T, {^^T}};
+  static constexpr _cli_impl::Spec spec{^^T};
   return {spec, args_in};
 }
 
 template <typename T>
 auto tuple_from_args(std::span<Argument::Unevaluated> args) {
-  // TODO only get positional
   _cli_impl::ArgumentTuple<T> args_tuple;
-  // if constexpr (std::derived_from<T, config>) {
-  //   // only load config if T is configurable
-  //   auto config = json5::load(T::get_config_path());
-  //   config.template update_argtuple<T>(args_tuple);
-  // }
-
   for (auto argument : args) {
     argument(&args_tuple);
   }

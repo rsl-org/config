@@ -26,25 +26,14 @@ struct ArgParser {
   [[nodiscard]] bool valid() const { return cursor < args.size() && !has_error(); }
 };
 
+bool parse_bool(std::string_view value);
+
 template <typename T>
 T parse_value(std::string_view value) {
   if constexpr (std::same_as<T, std::string>) {
     return std::string(value);
-  } else if constexpr (std::same_as<T, bool>) {
-    // allow a few more ways to spell true/false
-    // TODO move out of header
-    std::string lower_value(value);
-    std::ranges::transform(lower_value, lower_value.begin(), [](char c) {return std::tolower(c); });
-    if (lower_value == "1" || lower_value == "y" || lower_value == "yes" || lower_value == "on" ||
-        lower_value == "true") {
-      return true;
-    } else if (lower_value == "0" || lower_value == "n" || lower_value == "no" ||
-               lower_value == "off" || lower_value == "false") {
-      return false;
-    } else {
-      throw std::runtime_error("could not parse as bool");
-    }
   } else {
+    // TODO use rsl::repr instead?
     return json5::Serializer<T>::deserialize(json5::Value{std::string(value)});
   }
 }
